@@ -1,13 +1,15 @@
-import { NavLink } from 'react-router-dom'
 import { useCallback } from 'react'
+import { NavLink } from 'react-router-dom'
 import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
 import { PageIntro } from '../../components/layout/PageIntro'
 import { Button, Card } from '../../components/layout/ui'
 import { useAsyncData } from '../../hooks/useAsyncData'
+import { useI18n } from '../../i18n/I18nProvider'
 import { api } from '../../lib/api'
 import { mapEspaco, mapPredio } from '../../lib/adapters'
 
 export function AdminBuildingsPage() {
+  const { t } = useI18n()
   const loadBuildings = useCallback(async () => {
     const [predios, espacos] = await Promise.all([api.listPredios(), api.listEspacos()])
     const mappedBuildings = predios.map(mapPredio)
@@ -15,13 +17,18 @@ export function AdminBuildingsPage() {
 
     return mappedBuildings.map((building) => {
       const rooms = mappedSpaces.filter((space) => space.buildingId === building.id)
-      const availableCount = rooms.filter((space) => space.status === 'Disponivel').length
+      const availableCount = rooms.filter((space) => space.statusKey === 'common.statuses.available').length
 
       return {
         ...building,
         roomsCount: rooms.length,
         occupancy: rooms.length ? `${Math.round(((rooms.length - availableCount) / rooms.length) * 100)}%` : '0%',
-        status: availableCount === rooms.length ? 'Operando' : availableCount === 0 ? 'Atencao' : 'Parcial',
+        statusKey:
+          availableCount === rooms.length
+            ? 'common.statuses.operating'
+            : availableCount === 0
+              ? 'common.statuses.attention'
+              : 'common.statuses.partial',
       }
     })
   }, [])
@@ -31,15 +38,15 @@ export function AdminBuildingsPage() {
   return (
     <>
       <PageIntro
-        eyebrow="Administracao institucional"
-        title="Gerenciar predios"
-        description="Visao por unidade para ocupacao, responsaveis e estado operacional."
-        actions={<Button>Novo predio</Button>}
+        eyebrow={t('admin.buildings.eyebrow')}
+        title={t('admin.buildings.title')}
+        description={t('admin.buildings.description')}
+        actions={<Button>{t('admin.buildings.newBuilding')}</Button>}
       />
       <AdminTabs />
 
-      {loading ? <LoadingBlock label="Carregando predios da API..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar os predios." /> : null}
+      {loading ? <LoadingBlock label={t('async.buildingsLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.buildingsError')} /> : null}
 
       {!loading && !error && data ? (
         <section className="grid gap-6 xl:grid-cols-3">
@@ -64,31 +71,31 @@ export function AdminBuildingsPage() {
                 </div>
                 <dl className="mt-5 space-y-3 text-sm text-ink-muted">
                   <div className="flex justify-between gap-4">
-                    <dt>Codigo</dt>
+                    <dt>{t('admin.buildings.code')}</dt>
                     <dd className="font-semibold text-ink">{building.code}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt>Localizacao</dt>
+                    <dt>{t('admin.buildings.location')}</dt>
                     <dd className="font-semibold text-ink">{building.location}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt>Salas cadastradas</dt>
+                    <dt>{t('admin.buildings.rooms')}</dt>
                     <dd className="font-semibold text-ink">{building.roomsCount}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt>Ocupacao media</dt>
+                    <dt>{t('admin.buildings.occupancy')}</dt>
                     <dd className="font-semibold text-ink">{building.occupancy}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <dt>Status</dt>
-                    <dd className="font-semibold text-ink">{building.status}</dd>
+                    <dt>{t('admin.buildings.status')}</dt>
+                    <dd className="font-semibold text-ink">{t(building.statusKey)}</dd>
                   </div>
                 </dl>
                 <div className="mt-6 flex gap-3 border-t border-stroke pt-4">
                   <Button tone="secondary" className="flex-1">
-                    Ver detalhes
+                    {t('admin.buildings.viewDetails')}
                   </Button>
-                  <Button tone="ghost">Editar</Button>
+                  <Button tone="ghost">{t('common.edit')}</Button>
                 </div>
               </div>
             </Card>
@@ -100,11 +107,12 @@ export function AdminBuildingsPage() {
 }
 
 function AdminTabs() {
+  const { t } = useI18n()
   const links = [
-    { to: '/admin/espacos', label: 'Espacos' },
-    { to: '/admin/predios', label: 'Predios' },
-    { to: '/admin/usuarios', label: 'Usuarios' },
-    { to: '/configuracoes/api', label: 'API' },
+    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
+    { to: '/admin/predios', label: t('admin.tabs.buildings') },
+    { to: '/admin/usuarios', label: t('admin.tabs.users') },
+    { to: '/configuracoes/api', label: t('admin.tabs.api') },
   ]
 
   return (

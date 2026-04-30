@@ -4,35 +4,35 @@ import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
 import { PageIntro } from '../../components/layout/PageIntro'
 import { Badge, Button, Card } from '../../components/layout/ui'
 import { useAsyncData } from '../../hooks/useAsyncData'
+import { useI18n } from '../../i18n/I18nProvider'
 import { api } from '../../lib/api'
 import { mapReserva, mapUsuario } from '../../lib/adapters'
 
 export function AdminUsersPage() {
+  const { t, tm } = useI18n()
   const [emailTerm, setEmailTerm] = useState('')
   const loadUsers = useCallback(async () => {
-    const [usuarios, solicitantes, reservas] = await Promise.all([
-      api.listUsuarios(),
-      api.listSolicitantes(),
-      api.listReservas(),
-    ])
+    const [usuarios, solicitantes, reservas] = await Promise.all([api.listUsuarios(), api.listSolicitantes(), api.listReservas()])
 
     const mappedReservas = reservas.map(mapReserva)
     const mappedUsuarios = usuarios.map(mapUsuario).map((user) => ({
       id: `usuario-${user.id}`,
       name: user.name,
       email: user.email,
-      role: 'Usuario',
+      roleKey: 'common.statuses.user',
       requests: 0,
-      status: 'Ativo',
+      statusKey: 'common.statuses.active',
+      badgeTone: 'neutral',
     }))
 
     const mappedSolicitantes = solicitantes.map((solicitante) => ({
       id: `solicitante-${solicitante.id}`,
       name: solicitante.nome,
       email: solicitante.email,
-      role: 'Solicitante',
+      roleKey: 'common.statuses.requester',
       requests: mappedReservas.filter((reservation) => reservation.solicitanteId === solicitante.id).length,
-      status: 'Solicitante',
+      statusKey: 'common.statuses.requester',
+      badgeTone: 'info',
     }))
 
     return [...mappedUsuarios, ...mappedSolicitantes]
@@ -49,32 +49,32 @@ export function AdminUsersPage() {
   return (
     <>
       <PageIntro
-        title="Usuarios e solicitantes"
-        description="Gerencie perfis de acesso e permissoes de solicitacao de espacos na instituicao."
-        actions={<Button>Novo solicitante</Button>}
+        title={t('admin.users.title')}
+        description={t('admin.users.description')}
+        actions={<Button>{t('admin.users.newRequester')}</Button>}
       />
       <AdminTabs />
 
-      {loading ? <LoadingBlock label="Carregando usuarios e solicitantes..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar usuarios e solicitantes." /> : null}
+      {loading ? <LoadingBlock label={t('async.usersLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.usersError')} /> : null}
 
       {!loading && !error ? (
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-4 border-b border-stroke px-6 py-5 md:flex-row md:items-center md:justify-between">
             <input
               className="h-12 w-full max-w-md rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-              placeholder="Buscar por email..."
+              placeholder={t('admin.users.searchByEmail')}
               value={emailTerm}
               onChange={(event) => setEmailTerm(event.target.value)}
             />
-            <Button tone="secondary">Filtros</Button>
+            <Button tone="secondary">{t('admin.users.filters')}</Button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead className="bg-panel">
                 <tr>
-                  {['Nome', 'Email', 'Papel', 'Solicitacoes', 'Status', 'Acoes'].map((head) => (
+                  {tm('admin.users.headers').map((head) => (
                     <th key={head} className="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">
                       {head}
                     </th>
@@ -93,12 +93,12 @@ export function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-ink-muted">{user.email}</td>
-                    <td className="px-6 py-4 text-sm text-ink">{user.role}</td>
+                    <td className="px-6 py-4 text-sm text-ink">{t(user.roleKey)}</td>
                     <td className="px-6 py-4 text-sm text-ink">{user.requests}</td>
                     <td className="px-6 py-4">
-                      <Badge tone={user.status === 'Ativo' ? 'neutral' : 'info'}>{user.status}</Badge>
+                      <Badge tone={user.badgeTone}>{t(user.statusKey)}</Badge>
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-semibold text-navy">Gerenciar</td>
+                    <td className="px-6 py-4 text-right text-sm font-semibold text-navy">{t('admin.users.manage')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,11 +111,12 @@ export function AdminUsersPage() {
 }
 
 function AdminTabs() {
+  const { t } = useI18n()
   const links = [
-    { to: '/admin/espacos', label: 'Espacos' },
-    { to: '/admin/predios', label: 'Predios' },
-    { to: '/admin/usuarios', label: 'Usuarios' },
-    { to: '/configuracoes/api', label: 'API' },
+    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
+    { to: '/admin/predios', label: t('admin.tabs.buildings') },
+    { to: '/admin/usuarios', label: t('admin.tabs.users') },
+    { to: '/configuracoes/api', label: t('admin.tabs.api') },
   ]
 
   return (

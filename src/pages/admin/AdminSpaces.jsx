@@ -4,10 +4,12 @@ import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
 import { PageIntro } from '../../components/layout/PageIntro'
 import { Badge, Button, Card } from '../../components/layout/ui'
 import { useAsyncData } from '../../hooks/useAsyncData'
+import { useI18n } from '../../i18n/I18nProvider'
 import { api } from '../../lib/api'
 import { mapEspaco, mapPredio } from '../../lib/adapters'
 
 export function AdminSpacesPage() {
+  const { t, tm } = useI18n()
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [pendingId, setPendingId] = useState(null)
@@ -26,7 +28,7 @@ export function AdminSpacesPage() {
 
     return data.spaces.filter((space) => {
       const matchesBuilding = !selectedBuildingId || String(space.buildingId) === selectedBuildingId
-      const matchesAvailability = !onlyAvailable || space.status === 'Disponivel'
+      const matchesAvailability = !onlyAvailable || space.statusKey === 'common.statuses.available'
       return matchesBuilding && matchesAvailability
     })
   }, [data, onlyAvailable, selectedBuildingId])
@@ -36,9 +38,8 @@ export function AdminSpacesPage() {
 
     try {
       const updated = await api.updateEspacoIndisponibilidade(space.id, {
-        indisponivel: !space.maintenanceReason && space.status === 'Disponivel',
-        motivoIndisponibilidade:
-          space.status === 'Disponivel' ? 'Indisponibilidade definida pelo painel admin' : null,
+        indisponivel: space.statusKey === 'common.statuses.available',
+        motivoIndisponibilidade: space.statusKey === 'common.statuses.available' ? t('admin.spaces.adminReason') : null,
       })
 
       const mapped = mapEspaco(updated)
@@ -54,28 +55,28 @@ export function AdminSpacesPage() {
   return (
     <>
       <PageIntro
-        title="Gerenciar espacos"
-        description="Administre o inventario de salas, auditorios e laboratorios. Controle disponibilidade e caracteristicas estruturais do campus."
-        actions={<Button>Novo espaco</Button>}
+        title={t('admin.spaces.title')}
+        description={t('admin.spaces.description')}
+        actions={<Button>{t('admin.spaces.newSpace')}</Button>}
       />
       <AdminTabs />
 
-      {loading ? <LoadingBlock label="Carregando espacos da API..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar os espacos administrativos." /> : null}
+      {loading ? <LoadingBlock label={t('async.adminSpacesLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.adminSpacesError')} /> : null}
 
       {!loading && !error && data ? (
         <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
           <Card className="h-fit">
-            <h2 className="text-xl font-bold text-ink">Filtros</h2>
+            <h2 className="text-xl font-bold text-ink">{t('admin.spaces.filters')}</h2>
             <div className="mt-6 space-y-6">
               <label>
-                <span className="mb-2 block text-sm font-bold text-ink">Predio</span>
+                <span className="mb-2 block text-sm font-bold text-ink">{t('admin.spaces.building')}</span>
                 <select
                   className="h-12 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
                   value={selectedBuildingId}
                   onChange={(event) => setSelectedBuildingId(event.target.value)}
                 >
-                  <option value="">Todos os predios</option>
+                  <option value="">{t('admin.spaces.allBuildings')}</option>
                   {data.buildings.map((building) => (
                     <option key={building.id} value={building.id}>
                       {building.name}
@@ -86,7 +87,7 @@ export function AdminSpacesPage() {
 
               <label className="flex items-center gap-3 text-sm text-ink-muted">
                 <input checked={onlyAvailable} type="checkbox" onChange={(event) => setOnlyAvailable(event.target.checked)} />
-                Somente disponiveis
+                {t('admin.spaces.availableOnly')}
               </label>
             </div>
           </Card>
@@ -96,7 +97,7 @@ export function AdminSpacesPage() {
               <table className="min-w-full border-collapse">
                 <thead className="bg-panel">
                   <tr>
-                    {['Nome do espaco', 'Tipo', 'Cap.', 'Predio', 'Status', 'Acoes'].map((head) => (
+                    {tm('admin.spaces.headers').map((head) => (
                       <th key={head} className="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">
                         {head}
                       </th>
@@ -107,19 +108,19 @@ export function AdminSpacesPage() {
                   {filteredSpaces.map((space) => (
                     <tr key={space.id} className="border-t border-stroke hover:bg-brand-paper">
                       <td className="px-6 py-5 text-sm font-semibold text-ink">{space.name}</td>
-                      <td className="px-6 py-5 text-sm text-ink-muted">{space.type}</td>
+                      <td className="px-6 py-5 text-sm text-ink-muted">{t(space.typeKey)}</td>
                       <td className="px-6 py-5 text-sm text-ink">{space.capacity}</td>
                       <td className="px-6 py-5 text-sm text-ink-muted">{space.building}</td>
                       <td className="px-6 py-5">
-                        <Badge tone={space.status === 'Disponivel' ? 'success' : 'danger'}>{space.status}</Badge>
+                        <Badge tone={space.statusTone}>{t(space.statusKey)}</Badge>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex justify-end gap-3 text-sm font-semibold">
                           <button className="text-navy" type="button">
-                            Editar
+                            {t('common.edit')}
                           </button>
                           <button className="text-brand-red" disabled={pendingId === space.id} onClick={() => handleToggleAvailability(space)} type="button">
-                            {pendingId === space.id ? 'Salvando...' : 'Alternar'}
+                            {pendingId === space.id ? t('admin.spaces.saving') : t('admin.spaces.toggle')}
                           </button>
                         </div>
                       </td>
@@ -136,11 +137,12 @@ export function AdminSpacesPage() {
 }
 
 function AdminTabs() {
+  const { t } = useI18n()
   const links = [
-    { to: '/admin/espacos', label: 'Espacos' },
-    { to: '/admin/predios', label: 'Predios' },
-    { to: '/admin/usuarios', label: 'Usuarios' },
-    { to: '/configuracoes/api', label: 'API' },
+    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
+    { to: '/admin/predios', label: t('admin.tabs.buildings') },
+    { to: '/admin/usuarios', label: t('admin.tabs.users') },
+    { to: '/configuracoes/api', label: t('admin.tabs.api') },
   ]
 
   return (
