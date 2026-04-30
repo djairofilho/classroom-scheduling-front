@@ -4,11 +4,13 @@ import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
 import { PageIntro } from '../components/layout/PageIntro'
 import { Button, Card } from '../components/layout/ui'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { useI18n } from '../i18n/I18nProvider'
 import { api, isNotFoundError } from '../lib/api'
 import { mapEspaco, mapPredio } from '../lib/adapters'
 import { combineDateAndTime } from '../lib/format'
 
 export function NewBookingPage() {
+  const { t } = useI18n()
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({
     nome: '',
@@ -55,7 +57,7 @@ export function NewBookingPage() {
   const summary = {
     space: selectedSpace?.name ?? '--',
     building: selectedSpace?.building ?? '--',
-    capacity: selectedSpace ? `${selectedSpace.capacity} pessoas` : '--',
+    capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '--',
     dateTime: form.data && form.inicio && form.fim ? `${form.data} ${form.inicio} - ${form.fim}` : '--',
     requester: form.nome || form.email || '--',
   }
@@ -71,14 +73,14 @@ export function NewBookingPage() {
     try {
       const solicitante = await api.findSolicitanteByEmail(form.email)
       setForm((current) => ({ ...current, nome: solicitante.nome }))
-      setLookupMessage('Solicitante localizado na API.')
+      setLookupMessage(t('bookingForm.requesterFound'))
     } catch (caughtError) {
       if (isNotFoundError(caughtError)) {
-        setLookupMessage('Solicitante nao encontrado. Informe o nome para cadastro automatico.')
+        setLookupMessage(t('bookingForm.requesterMissing'))
         return
       }
 
-      setLookupMessage('Nao foi possivel consultar o solicitante.')
+      setLookupMessage(t('bookingForm.requesterLookupError'))
     }
   }
 
@@ -111,9 +113,9 @@ export function NewBookingPage() {
         motivo: form.motivo,
       })
 
-      setSubmitMessage('Reserva criada com sucesso.')
+      setSubmitMessage(t('bookingForm.success'))
     } catch (caughtError) {
-      setSubmitMessage(`Nao foi possivel criar a reserva: ${caughtError.message}`)
+      setSubmitMessage(t('bookingForm.error', { message: caughtError.message }))
     } finally {
       setSubmitting(false)
     }
@@ -122,31 +124,31 @@ export function NewBookingPage() {
   return (
     <>
       <PageIntro
-        title="Nova reserva"
-        description="Preencha os dados abaixo para solicitar um novo espaco academico."
+        title={t('bookingForm.title')}
+        description={t('bookingForm.description')}
       />
 
-      {loading ? <LoadingBlock label="Carregando formulario a partir da API..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar predios e espacos da API." /> : null}
+      {loading ? <LoadingBlock label={t('async.bookingLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.bookingError')} /> : null}
 
       {!loading && !error && data ? (
         <form className="grid gap-6 xl:grid-cols-12" onSubmit={handleSubmit}>
           <div className="space-y-6 xl:col-span-8">
             <FormSection
-              title="Dados do solicitante"
-              description="Use o e-mail institucional para localizar o perfil de quem fara a solicitacao."
+              title={t('bookingForm.requesterTitle')}
+              description={t('bookingForm.requesterDescription')}
             >
               <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
                 <Field
-                  label="E-mail institucional"
+                  label={t('bookingForm.requesterEmail')}
                   placeholder="nome.sobrenome@insper.edu.br"
                   value={form.email}
                   onChange={(value) => setForm((current) => ({ ...current, email: value }))}
                   onBlur={handleLookup}
                 />
                 <Field
-                  label="Nome completo"
-                  placeholder="Nome do solicitante"
+                  label={t('bookingForm.requesterName')}
+                  placeholder={t('bookingForm.requesterName')}
                   value={form.nome}
                   onChange={(value) => setForm((current) => ({ ...current, nome: value }))}
                 />
@@ -155,25 +157,25 @@ export function NewBookingPage() {
             </FormSection>
 
             <FormSection
-              title="Selecao de espaco"
-              description="Escolha primeiro o predio e depois o ambiente desejado."
+              title={t('bookingForm.spaceTitle')}
+              description={t('bookingForm.spaceDescription')}
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
-                  label="Predio / Unidade"
+                  label={t('bookingForm.building')}
                   value={selectedBuildingId}
                   onChange={(value) => setForm((current) => ({ ...current, predioId: value, espacoId: '' }))}
                   options={[
-                    { value: '', label: 'Selecione o predio...' },
+                    { value: '', label: t('bookingForm.chooseBuilding') },
                     ...data.buildings.map((building) => ({ value: String(building.id), label: building.name })),
                   ]}
                 />
                 <SelectField
-                  label="Sala / Laboratorio"
+                  label={t('bookingForm.room')}
                   value={form.espacoId}
                   onChange={(value) => setForm((current) => ({ ...current, espacoId: value }))}
                   options={[
-                    { value: '', label: 'Selecione a sala...' },
+                    { value: '', label: t('bookingForm.chooseRoom') },
                     ...filteredSpaces.map((space) => ({ value: String(space.id), label: space.name })),
                   ]}
                 />
@@ -181,24 +183,24 @@ export function NewBookingPage() {
             </FormSection>
 
             <FormSection
-              title="Data e horario"
-              description="Informe a janela completa da reserva para evitar conflitos de agenda."
+              title={t('bookingForm.dateTimeTitle')}
+              description={t('bookingForm.dateTimeDescription')}
             >
               <div className="grid gap-4 md:grid-cols-3">
                 <Field
-                  label="Data da reserva"
+                  label={t('bookingForm.reservationDate')}
                   type="date"
                   value={form.data}
                   onChange={(value) => setForm((current) => ({ ...current, data: value }))}
                 />
                 <Field
-                  label="Hora de inicio"
+                  label={t('bookingForm.startTime')}
                   type="time"
                   value={form.inicio}
                   onChange={(value) => setForm((current) => ({ ...current, inicio: value }))}
                 />
                 <Field
-                  label="Hora de termino"
+                  label={t('bookingForm.endTime')}
                   type="time"
                   value={form.fim}
                   onChange={(value) => setForm((current) => ({ ...current, fim: value }))}
@@ -207,14 +209,14 @@ export function NewBookingPage() {
             </FormSection>
 
             <FormSection
-              title="Motivo da reserva"
-              description="A justificativa ajuda a priorizar e aprovar solicitacoes com mais contexto."
+              title={t('bookingForm.reasonTitle')}
+              description={t('bookingForm.reasonDescription')}
             >
               <label>
-                <span className="mb-2 block text-sm font-bold text-ink">Justificativa academica</span>
+                <span className="mb-2 block text-sm font-bold text-ink">{t('bookingForm.academicReason')}</span>
                 <textarea
                   className="min-h-36 w-full rounded-2xl border border-stroke bg-panel px-4 py-3 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-                  placeholder="Descreva brevemente o proposito da utilizacao do espaco..."
+                  placeholder={t('bookingForm.reasonPlaceholder')}
                   value={form.motivo}
                   onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
                 />
@@ -225,13 +227,13 @@ export function NewBookingPage() {
           <div className="xl:col-span-4">
             <div className="sticky top-28 space-y-4">
               <Card>
-                <h2 className="border-b border-stroke pb-4 text-2xl font-bold text-ink">Resumo da reserva</h2>
+                <h2 className="border-b border-stroke pb-4 text-2xl font-bold text-ink">{t('bookingForm.summary')}</h2>
                 <dl className="space-y-5 pt-5">
-                  <SummaryRow label="Espaco selecionado" value={summary.space} />
-                  <SummaryRow label="Predio / Unidade" value={summary.building} />
-                  <SummaryRow label="Capacidade estimada" value={summary.capacity} />
-                  <SummaryRow label="Data e horario" value={summary.dateTime} />
-                  <SummaryRow label="Solicitante" value={summary.requester} />
+                  <SummaryRow label={t('bookingForm.selectedSpace')} value={summary.space} />
+                  <SummaryRow label={t('bookingForm.selectedBuilding')} value={summary.building} />
+                  <SummaryRow label={t('bookingForm.estimatedCapacity')} value={summary.capacity} />
+                  <SummaryRow label={t('bookingForm.selectedDateTime')} value={summary.dateTime} />
+                  <SummaryRow label={t('bookingForm.requester')} value={summary.requester} />
                 </dl>
               </Card>
 
@@ -249,10 +251,10 @@ export function NewBookingPage() {
                     !form.motivo
                   }
                 >
-                  {submitting ? 'Enviando...' : 'Confirmar reserva'}
+                  {submitting ? t('bookingForm.submitting') : t('bookingForm.submit')}
                 </Button>
                 <Button tone="secondary" className="w-full" type="button">
-                  Cancelar
+                  {t('bookingForm.cancel')}
                 </Button>
                 {submitMessage ? <p className="text-sm text-ink-muted">{submitMessage}</p> : null}
               </div>

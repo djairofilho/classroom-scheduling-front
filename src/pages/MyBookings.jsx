@@ -3,11 +3,13 @@ import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
 import { PageIntro } from '../components/layout/PageIntro'
 import { Badge, Button, Card } from '../components/layout/ui'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { mapReserva } from '../lib/adapters'
 
 export function MyBookingsPage() {
-  const [selectedTab, setSelectedTab] = useState('Ativas')
+  const { t, tm } = useI18n()
+  const [selectedTab, setSelectedTab] = useState('active')
   const [selectedBooking, setSelectedBooking] = useState(null)
   const loadBookings = useCallback(async () => {
     const reservas = await api.listReservas()
@@ -17,9 +19,9 @@ export function MyBookingsPage() {
   const { data, loading, error, setData } = useAsyncData(loadBookings)
 
   const filteredBookings = (data ?? []).filter((booking) => {
-    if (selectedTab === 'Todas') return true
-    if (selectedTab === 'Canceladas') return booking.status === 'Cancelada'
-    return booking.status === 'Ativa'
+    if (selectedTab === 'all') return true
+    if (selectedTab === 'cancelled') return booking.cancelada
+    return !booking.cancelada
   })
 
   async function handleCancelBooking() {
@@ -34,24 +36,28 @@ export function MyBookingsPage() {
 
   return (
     <>
-      <PageIntro title="Minhas reservas" actions={<Button>Nova reserva</Button>} />
+      <PageIntro title={t('bookings.title')} actions={<Button>{t('bookings.newReservation')}</Button>} />
 
-      {loading ? <LoadingBlock label="Carregando reservas..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar as reservas da API." /> : null}
+      {loading ? <LoadingBlock label={t('async.reservationsLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.reservationsError')} /> : null}
 
       {!loading && !error ? (
         <>
           <div className="mb-6 flex gap-8 border-b border-stroke">
-            {['Ativas', 'Canceladas', 'Todas'].map((tab) => (
+            {[
+              { id: 'active', label: t('bookings.tabs.active') },
+              { id: 'cancelled', label: t('bookings.tabs.cancelled') },
+              { id: 'all', label: t('bookings.tabs.all') },
+            ].map((tab) => (
               <button
-                key={tab}
+                key={tab.id}
                 className={`border-b-2 px-2 pb-3 text-sm font-bold transition ${
-                  selectedTab === tab ? 'border-brand-red text-brand-red' : 'border-transparent text-ink-muted hover:text-ink'
+                  selectedTab === tab.id ? 'border-brand-red text-brand-red' : 'border-transparent text-ink-muted hover:text-ink'
                 }`}
-                onClick={() => setSelectedTab(tab)}
+                onClick={() => setSelectedTab(tab.id)}
                 type="button"
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -61,7 +67,7 @@ export function MyBookingsPage() {
               <table className="min-w-full border-collapse">
                 <thead className="bg-panel text-left">
                   <tr>
-                    {['ID', 'Espaco', 'Predio', 'Data', 'Horario', 'Motivo', 'Status', 'Acoes'].map((head) => (
+                    {tm('bookings.headers').map((head) => (
                       <th key={head} className="px-6 py-4 text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">
                         {head}
                       </th>
@@ -78,16 +84,16 @@ export function MyBookingsPage() {
                       <td className="px-6 py-5 text-sm text-ink">{booking.time}</td>
                       <td className="px-6 py-5 text-sm text-ink-muted">{booking.reason}</td>
                       <td className="px-6 py-5">
-                        <Badge tone={booking.status === 'Ativa' ? 'info' : 'neutral'}>{booking.status}</Badge>
+                        <Badge tone={booking.statusKey === 'common.statuses.active' ? 'info' : 'neutral'}>{t(booking.statusKey)}</Badge>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex justify-end gap-3 text-sm font-semibold">
                           <button className="text-navy" type="button">
-                            Ver detalhes
+                            {t('bookings.viewDetails')}
                           </button>
-                          {booking.status === 'Ativa' ? (
+                          {!booking.cancelada ? (
                             <button className="text-brand-red" onClick={() => setSelectedBooking(booking)} type="button">
-                              Cancelar
+                              {t('bookings.cancel')}
                             </button>
                           ) : null}
                         </div>
@@ -107,18 +113,17 @@ export function MyBookingsPage() {
                     !
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-ink">Cancelar reserva?</h2>
+                    <h2 className="text-2xl font-bold text-ink">{t('bookings.modalTitle')}</h2>
                     <p className="mt-3 text-sm leading-7 text-ink-muted">
-                      Tem certeza que deseja cancelar a reserva <strong>{selectedBooking.code}</strong> para o{' '}
-                      <strong>{selectedBooking.space}</strong>? Esta acao nao pode ser desfeita e o espaco sera liberado imediatamente.
+                      {t('bookings.modalBody', { code: selectedBooking.code, space: selectedBooking.space })}
                     </p>
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end gap-3 border-t border-stroke pt-5">
                   <Button tone="secondary" onClick={() => setSelectedBooking(null)}>
-                    Voltar
+                    {t('bookings.back')}
                   </Button>
-                  <Button onClick={handleCancelBooking}>Confirmar cancelamento</Button>
+                  <Button onClick={handleCancelBooking}>{t('bookings.confirmCancellation')}</Button>
                 </div>
               </Card>
             </div>

@@ -4,11 +4,13 @@ import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
 import { PageIntro } from '../components/layout/PageIntro'
 import { Badge, Card } from '../components/layout/ui'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { appUser, createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '../lib/adapters'
 import { AppIcon } from '../lib/icons'
 
 export function DashboardPage() {
+  const { t } = useI18n()
   const loadDashboard = useCallback(async () => {
     const [reservasAtivas, espacos, notificacoes, predios] = await Promise.all([
       api.listReservasAtivas(),
@@ -37,23 +39,23 @@ export function DashboardPage() {
   return (
     <>
       <PageIntro
-        eyebrow={`Ola, ${appUser.name.split(' ')[0]}`}
-        title="Agendamento de salas"
-        description="Uma visao objetiva do portal para acompanhar disponibilidade, proximas reservas e alertas operacionais."
+        eyebrow={t('dashboard.greeting', { name: appUser.name.split(' ')[0] })}
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
         actions={
           <>
             <Link className="inline-flex items-center justify-center rounded-2xl border border-stroke bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:bg-warm-stone" to="/espacos">
-              Ver espacos disponiveis
+              {t('dashboard.viewAvailable')}
             </Link>
             <Link className="inline-flex items-center justify-center rounded-2xl bg-brand-red px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-red-dark" to="/reservas/nova">
-              Nova reserva
+              {t('dashboard.newReservation')}
             </Link>
           </>
         }
       />
 
-      {loading ? <LoadingBlock label="Carregando visao geral do portal..." /> : null}
-      {error ? <ErrorBlock message="Nao foi possivel carregar o dashboard da API." /> : null}
+      {loading ? <LoadingBlock label={t('async.dashboardLoad')} /> : null}
+      {error ? <ErrorBlock message={t('async.dashboardError')} /> : null}
 
       {!loading && !error && data ? (
         <>
@@ -61,7 +63,7 @@ export function DashboardPage() {
             {metrics.map((item) => (
               <Card key={item.label} className="space-y-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-ink-muted">{item.label}</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-ink-muted">{t(item.labelKey)}</p>
                   <AppIcon
                     name={item.icon}
                     className={[
@@ -85,28 +87,28 @@ export function DashboardPage() {
             <Card className="xl:col-span-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-3xl font-bold tracking-tight text-ink">Proxima reserva</h2>
-                  <p className="mt-2 text-sm text-ink-muted">Resumo do seu compromisso mais proximo.</p>
+                  <h2 className="text-3xl font-bold tracking-tight text-ink">{t('dashboard.nextBooking')}</h2>
+                  <p className="mt-2 text-sm text-ink-muted">{t('dashboard.nextBookingSummary')}</p>
                 </div>
-                <Badge tone="danger">{nextBooking ? 'Confirmada' : 'Sem agenda'}</Badge>
+                <Badge tone="danger">{nextBooking ? t('common.statuses.confirmed') : t('common.statuses.noSchedule')}</Badge>
               </div>
 
               <div className="mt-8 grid gap-6 border-t border-stroke pt-8 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-ink-muted">Localizacao</p>
+                  <p className="text-sm text-ink-muted">{t('dashboard.location')}</p>
                   <p className="mt-2 text-3xl font-bold text-ink">{nextBooking?.space ?? '--'}</p>
-                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.building ?? 'Sem localizacao definida'}</p>
+                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.building ?? t('dashboard.noLocation')}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-ink-muted">Horario e motivo</p>
+                  <p className="text-sm text-ink-muted">{t('dashboard.timeReason')}</p>
                   <p className="mt-2 text-3xl font-bold text-ink">{nextBooking?.time ?? '--'}</p>
-                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.reason ?? 'Nenhuma reserva ativa.'}</p>
+                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.reason ?? t('dashboard.noActiveReservations')}</p>
                 </div>
               </div>
 
               <div className="mt-8 flex justify-end">
                 <Link className="inline-flex items-center gap-2 text-sm font-bold text-brand-red" to={nextBooking?.espacoId ? `/espacos/${nextBooking.espacoId}` : '/espacos'}>
-                  Ver detalhes completos
+                  {t('dashboard.fullDetails')}
                   <AppIcon name="chevron-right" className="h-4 w-4" />
                 </Link>
               </div>
@@ -114,9 +116,9 @@ export function DashboardPage() {
 
             <Card className="bg-panel xl:col-span-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-ink">Recentes</h2>
+                <h2 className="text-2xl font-bold text-ink">{t('dashboard.recent')}</h2>
                 <Link className="text-sm font-semibold text-ink-muted" to="/notificacoes">
-                  Ver tudo
+                  {t('common.viewAll')}
                 </Link>
               </div>
 
@@ -135,7 +137,7 @@ export function DashboardPage() {
                         ].join(' ')}
                       />
                       <div>
-                        <p className="font-semibold text-ink">{item.title}</p>
+                        <p className="font-semibold text-ink">{t(item.titleKey)}</p>
                         <p className="mt-1 text-sm leading-6 text-ink-muted">{item.body}</p>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted/80">{item.time}</p>
                       </div>
