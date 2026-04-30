@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { appUser } from '../../lib/data'
+import { appUser } from '../../lib/adapters'
 import { AppIcon } from '../../lib/icons'
 
 const navigation = [
