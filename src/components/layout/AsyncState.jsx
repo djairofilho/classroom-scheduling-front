@@ -10,7 +10,7 @@ export function LoadingBlock({ label = 'Carregando dados...' }) {
   )
 }
 
-export function ErrorBlock({ message = 'Nao foi possivel carregar os dados.' }) {
+export function ErrorBlock({ message = 'Não foi possível carregar os dados.' }) {
   return (
     <Card className="border-brand-red/20 bg-brand-red/5">
       <div className="flex min-h-40 items-center justify-center text-sm font-semibold text-brand-red">

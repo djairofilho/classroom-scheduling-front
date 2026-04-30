@@ -2,8 +2,8 @@ import { formatDate, formatRelativeTime, formatTimeRange } from './format'
 
 export const appUser = {
   name: 'Marina Silva',
-  role: 'Professora',
-  department: 'Arquitetura e Cidade',
+  roleKey: 'shell.role',
+  departmentKey: 'shell.department',
 }
 
 export function mapPredio(predio) {
@@ -17,30 +17,30 @@ export function mapPredio(predio) {
 
 export function mapEspaco(espaco) {
   const indisponivel = Boolean(espaco.indisponivel)
+
   return {
     id: espaco.id,
     name: espaco.nome,
     capacity: espaco.capacidade,
-    building: espaco.predio?.nome ?? 'Sem predio',
+    building: espaco.predio?.nome ?? 'Sem prédio',
     buildingId: espaco.predio?.id ?? null,
     buildingCode: espaco.predio?.codigo ?? '',
     buildingLocation: espaco.predio?.localizacao ?? '',
-    type: espaco.tipo ?? inferSpaceType(espaco.nome),
-    status: indisponivel ? 'Indisponivel' : 'Disponivel',
+    typeKey: inferSpaceType(espaco.tipo ?? espaco.nome),
+    statusKey: indisponivel ? 'common.statuses.unavailable' : 'common.statuses.available',
     statusTone: indisponivel ? 'danger' : 'success',
     maintenanceReason: espaco.motivoIndisponibilidade ?? '',
-    description: buildSpaceDescription(espaco),
-    features: buildSpaceFeatures(espaco),
     floor: espaco.predio?.localizacao ?? 'Campus principal',
     weeklySchedule: [
-      ['Livre', 'Reserva', 'Livre', 'Reserva', 'Livre', 'Livre'],
-      ['Livre', 'Livre', indisponivel ? 'Manutencao' : 'Livre', 'Livre', 'Evento', 'Livre'],
+      ['free', 'reservation', 'free', 'reservation', 'free', 'free'],
+      ['free', 'free', indisponivel ? 'maintenance' : 'free', 'free', 'event', 'free'],
     ],
   }
 }
 
 export function mapReserva(reserva) {
   const cancelada = Boolean(reserva.cancelada)
+
   return {
     id: reserva.id,
     code: `#RES-${String(reserva.id).padStart(3, '0')}`,
@@ -48,12 +48,12 @@ export function mapReserva(reserva) {
     solicitanteNome: reserva.solicitante?.nome ?? 'Solicitante',
     solicitanteEmail: reserva.solicitante?.email ?? '',
     espacoId: reserva.espaco?.id ?? null,
-    space: reserva.espaco?.nome ?? 'Espaco',
-    building: reserva.espaco?.predio?.nome ?? 'Sem predio',
+    space: reserva.espaco?.nome ?? 'Espaço',
+    building: reserva.espaco?.predio?.nome ?? 'Sem prédio',
     date: formatDate(reserva.horarios?.inicio),
     time: formatTimeRange(reserva.horarios?.inicio, reserva.horarios?.fim),
     reason: reserva.motivo ?? 'Sem motivo informado',
-    status: cancelada ? 'Cancelada' : 'Ativa',
+    statusKey: cancelada ? 'common.statuses.cancelled' : 'common.statuses.active',
     cancelada,
     createdAt: reserva.criadaEm,
     start: reserva.horarios?.inicio,
@@ -62,10 +62,11 @@ export function mapReserva(reserva) {
 }
 
 export function mapNotificacao(notificacao) {
-  const body = notificacao.mensagem ?? 'Notificacao sem mensagem.'
+  const body = notificacao.mensagem ?? 'Notificação sem mensagem.'
+
   return {
     id: notificacao.id,
-    title: inferNotificationTitle(body),
+    titleKey: inferNotificationTitle(body),
     body,
     time: formatRelativeTime(notificacao.enviadaEm),
     tone: inferNotificationTone(body),
@@ -85,35 +86,22 @@ export function mapUsuario(usuario) {
 }
 
 export function createDashboardMetrics({ reservasAtivas, espacos, notificacoes, predios }) {
-  const disponiveis = espacos.filter((item) => item.status === 'Disponivel').length
+  const disponiveis = espacos.filter((item) => item.statusKey === 'common.statuses.available').length
 
   return [
-    { label: 'Reservas ativas', value: String(reservasAtivas.length), icon: 'calendar', tone: 'primary' },
-    { label: 'Espacos disponiveis', value: String(disponiveis), icon: 'building', tone: 'secondary' },
-    { label: 'Notificacoes', value: String(notificacoes.filter((item) => !item.lida).length), icon: 'bell', tone: 'tertiary' },
-    { label: 'Predios ativos', value: String(predios.length), icon: 'layers', tone: 'neutral' },
+    { labelKey: 'dashboard.metrics.activeReservations', value: String(reservasAtivas.length), icon: 'calendar', tone: 'primary' },
+    { labelKey: 'dashboard.metrics.availableSpaces', value: String(disponiveis), icon: 'building', tone: 'secondary' },
+    { labelKey: 'dashboard.metrics.notifications', value: String(notificacoes.filter((item) => !item.lida).length), icon: 'bell', tone: 'tertiary' },
+    { labelKey: 'dashboard.metrics.activeBuildings', value: String(predios.length), icon: 'layers', tone: 'neutral' },
   ]
 }
 
 function inferSpaceType(name = '') {
   const lower = name.toLowerCase()
-  if (lower.includes('laboratorio') || lower.includes('lab')) return 'Laboratorio'
-  if (lower.includes('auditorio')) return 'Auditorio'
-  if (lower.includes('reun')) return 'Reuniao'
-  return 'Aula'
-}
-
-function buildSpaceDescription(espaco) {
-  const predio = espaco.predio?.nome ? `em ${espaco.predio.nome}` : 'no campus'
-  return `Espaco academico ${predio} com capacidade para ${espaco.capacidade ?? 0} pessoas.`
-}
-
-function buildSpaceFeatures(espaco) {
-  const features = [`Capacidade ${espaco.capacidade ?? 0}`]
-  if (espaco.predio?.codigo) features.push(`Codigo ${espaco.predio.codigo}`)
-  if (espaco.predio?.localizacao) features.push(espaco.predio.localizacao)
-  if (espaco.motivoIndisponibilidade) features.push('Indisponibilidade ativa')
-  return features
+  if (lower.includes('laboratorio') || lower.includes('laboratório') || lower.includes('lab')) return 'common.spaceTypes.lab'
+  if (lower.includes('auditorio') || lower.includes('auditório')) return 'common.spaceTypes.auditorium'
+  if (lower.includes('reun')) return 'common.spaceTypes.meeting'
+  return 'common.spaceTypes.classroom'
 }
 
 function inferNotificationTone(message = '') {
@@ -125,8 +113,8 @@ function inferNotificationTone(message = '') {
 
 function inferNotificationTitle(message = '') {
   const lower = message.toLowerCase()
-  if (lower.includes('confirm')) return 'Confirmacao'
-  if (lower.includes('cancel')) return 'Cancelamento'
-  if (lower.includes('manuten')) return 'Manutencao'
-  return 'Atualizacao'
+  if (lower.includes('confirm')) return 'common.notifications.confirmation'
+  if (lower.includes('cancel')) return 'common.notifications.cancellation'
+  if (lower.includes('manuten')) return 'common.notifications.maintenance'
+  return 'common.notifications.update'
 }
