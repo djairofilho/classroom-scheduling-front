@@ -39,7 +39,7 @@ export function AdminSpacesPage() {
     try {
       const updated = await api.updateEspacoIndisponibilidade(space.id, {
         indisponivel: space.statusKey === 'common.statuses.available',
-        motivoIndisponibilidade: space.statusKey === 'common.statuses.available' ? t('admin.spaces.adminReason') : null,
+        motivo: space.statusKey === 'common.statuses.available' ? t('admin.spaces.adminReason') : null,
       })
 
       const mapped = mapEspaco(updated)
