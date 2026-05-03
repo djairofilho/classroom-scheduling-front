@@ -7,20 +7,26 @@ import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { appUser, createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '../lib/adapters'
+import { getCurrentSolicitante } from '../lib/currentUser'
 import { AppIcon } from '../lib/icons'
 
 export function DashboardPage() {
   const { t } = useI18n()
   const loadDashboard = useCallback(async () => {
+    const currentSolicitante = await getCurrentSolicitante()
+
     const [reservasAtivas, espacos, notificacoes, predios] = await Promise.all([
-      api.listReservasAtivas(),
+      api.listReservasPorSolicitante(currentSolicitante.id),
       api.listEspacos(),
-      api.listNotificacoes(),
+      api.listNotificacoesPorDestinatario(currentSolicitante.id),
       api.listPredios(),
     ])
 
     return {
-      reservasAtivas: reservasAtivas.map(mapReserva),
+      reservasAtivas: reservasAtivas
+        .map(mapReserva)
+        .filter((reserva) => !reserva.cancelada)
+        .sort((first, second) => new Date(first.start).getTime() - new Date(second.start).getTime()),
       espacos: espacos.map(mapEspaco),
       notificacoes: notificacoes.map(mapNotificacao),
       predios: predios.map(mapPredio),
@@ -60,8 +66,8 @@ export function DashboardPage() {
       {!loading && !error && data ? (
         <>
           <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((item) => (
-              <Card key={item.label} className="space-y-5">
+              {metrics.map((item) => (
+              <Card key={item.labelKey} className="space-y-5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-ink-muted">{t(item.labelKey)}</p>
                   <AppIcon
