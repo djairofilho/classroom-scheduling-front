@@ -52,10 +52,10 @@ export function DashboardPage() {
         description={t('dashboard.description')}
         actions={
           <>
-            <Link className="inline-flex items-center justify-center rounded-2xl border border-stroke bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:bg-warm-stone" to="/espacos">
+            <Link className="inline-flex items-center justify-center rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-warm-stone" to="/espacos">
               {t('dashboard.viewAvailable')}
             </Link>
-            <Link className="inline-flex items-center justify-center rounded-2xl bg-brand-red px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-red-dark" to="/reservas/nova">
+            <Link className="inline-flex items-center justify-center rounded-xl bg-brand-red px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-red-dark" to="/reservas/nova">
               {t('dashboard.newReservation')}
             </Link>
           </>
@@ -67,15 +67,15 @@ export function DashboardPage() {
 
       {!loading && !error && data ? (
         <>
-          <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {metrics.map((item) => (
-              <Card key={item.labelKey} className="space-y-5">
+              <Card key={item.labelKey} className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-ink-muted">{t(item.labelKey)}</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">{t(item.labelKey)}</p>
                   <AppIcon
                     name={item.icon}
                     className={[
-                      'h-5 w-5',
+                      'h-4 w-4',
                       item.tone === 'primary'
                         ? 'text-brand-red'
                         : item.tone === 'secondary'
@@ -86,35 +86,35 @@ export function DashboardPage() {
                     ].join(' ')}
                   />
                 </div>
-                <p className="text-5xl font-extrabold tracking-tight text-ink">{item.value}</p>
+                <p className="text-4xl font-extrabold tracking-tight text-ink">{item.value}</p>
               </Card>
             ))}
           </section>
 
-          <section className="mt-8 grid gap-6 xl:grid-cols-12">
+          <section className="mt-5 grid gap-5 xl:grid-cols-12">
             <Card className="xl:col-span-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-3xl font-bold tracking-tight text-ink">{t('dashboard.nextBooking')}</h2>
-                  <p className="mt-2 text-sm text-ink-muted">{t('dashboard.nextBookingSummary')}</p>
+                  <h2 className="text-2xl font-bold tracking-tight text-ink">{t('dashboard.nextBooking')}</h2>
+                  <p className="mt-1 text-sm text-ink-muted">{t('dashboard.nextBookingSummary')}</p>
                 </div>
                 <Badge tone="danger">{nextBooking ? t('common.statuses.confirmed') : t('common.statuses.noSchedule')}</Badge>
               </div>
 
-              <div className="mt-8 grid gap-6 border-t border-stroke pt-8 md:grid-cols-2">
+              <div className="mt-5 grid gap-5 border-t border-stroke pt-5 md:grid-cols-2">
                 <div>
                   <p className="text-sm text-ink-muted">{t('dashboard.location')}</p>
-                  <p className="mt-2 text-3xl font-bold text-ink">{nextBooking?.space ?? '--'}</p>
+                  <p className="mt-1 text-2xl font-bold text-ink">{nextBooking?.space ?? '--'}</p>
                   <p className="mt-1 text-base text-ink-muted">{nextBooking?.building ?? t('dashboard.noLocation')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-ink-muted">{t('dashboard.timeReason')}</p>
-                  <p className="mt-2 text-3xl font-bold text-ink">{nextBooking?.time ?? '--'}</p>
+                  <p className="mt-1 text-2xl font-bold text-ink">{nextBooking?.time ?? '--'}</p>
                   <p className="mt-1 text-base text-ink-muted">{nextBooking?.reason ?? t('dashboard.noActiveReservations')}</p>
                 </div>
               </div>
 
-              <div className="mt-8 flex justify-end">
+              <div className="mt-5 flex justify-end">
                 <Link className="inline-flex items-center gap-2 text-sm font-bold text-brand-red" to={nextBooking?.espacoId ? `/espacos/${nextBooking.espacoId}` : '/espacos'}>
                   {t('dashboard.fullDetails')}
                   <AppIcon name="chevron-right" className="h-4 w-4" />
@@ -124,15 +124,15 @@ export function DashboardPage() {
 
             <Card className="bg-panel xl:col-span-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-ink">{t('dashboard.recent')}</h2>
+                <h2 className="text-xl font-bold text-ink">{t('dashboard.recent')}</h2>
                 <Link className="text-sm font-semibold text-ink-muted" to="/notificacoes">
                   {t('common.viewAll')}
                 </Link>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="mt-4 space-y-3">
                 {data.notificacoes.slice(0, 3).map((item) => (
-                  <article key={item.id} className="rounded-2xl border border-stroke bg-white p-4">
+                  <article key={item.id} className="rounded-xl border border-stroke bg-white p-3.5">
                     <div className="flex gap-3">
                       <span
                         className={[
@@ -146,7 +146,7 @@ export function DashboardPage() {
                       />
                       <div>
                         <p className="font-semibold text-ink">{t(item.titleKey)}</p>
-                        <p className="mt-1 text-sm leading-6 text-ink-muted">{item.body}</p>
+                        <p className="mt-1 text-sm leading-5 text-ink-muted">{item.body}</p>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted/80">{item.time}</p>
                       </div>
                     </div>

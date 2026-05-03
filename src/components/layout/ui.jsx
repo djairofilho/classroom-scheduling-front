@@ -1,5 +1,5 @@
 export function Card({ className = '', children }) {
-  return <section className={`rounded-3xl border border-stroke bg-white p-6 shadow-soft ${className}`}>{children}</section>
+  return <section className={`rounded-2xl border border-stroke bg-white p-5 shadow-soft ${className}`}>{children}</section>
 }
 
 export function Button({ className = '', tone = 'primary', children, ...props }) {
@@ -11,7 +11,7 @@ export function Button({ className = '', tone = 'primary', children, ...props })
 
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold transition ${tones[tone]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tones[tone]} ${className}`}
       {...props}
     >
       {children}
