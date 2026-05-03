@@ -6,17 +6,20 @@ import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { mapEspaco, mapReserva } from '../lib/adapters'
+import { useAuth } from '../lib/authContext'
 import { AppIcon } from '../lib/icons'
 
 export function SpaceDetailsPage() {
   const { t, tm } = useI18n()
   const { spaceId } = useParams()
+  const { user, isAdmin } = useAuth()
 
   const loadDetails = useCallback(async () => {
+    const reservationsRequest = isAdmin ? api.listReservas() : api.listReservasPorSolicitante(user.id)
     const [espaco, espacos, reservas] = await Promise.all([
       api.getEspaco(spaceId),
       api.listEspacos(),
-      api.listReservas(),
+      reservationsRequest,
     ])
 
     return {
@@ -24,7 +27,7 @@ export function SpaceDetailsPage() {
       spaces: espacos.map(mapEspaco),
       reservations: reservas.map(mapReserva),
     }
-  }, [spaceId])
+  }, [isAdmin, spaceId, user.id])
 
   const { data, loading, error } = useAsyncData(loadDetails)
 
@@ -159,10 +162,12 @@ export function SpaceDetailsPage() {
                   <Link className="inline-flex w-full items-center justify-center rounded-2xl bg-brand-red px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-red-dark" to={`/reservas/nova?espacoId=${data.space.id}`}>
                     {t('spaceDetails.reserveThisSpace')}
                   </Link>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button tone="secondary">{t('common.edit')}</Button>
-                    <Button tone="ghost">{t('spaceDetails.markUnavailable')}</Button>
-                  </div>
+                  {isAdmin ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button tone="secondary">{t('common.edit')}</Button>
+                      <Button tone="ghost">{t('spaceDetails.markUnavailable')}</Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </>
