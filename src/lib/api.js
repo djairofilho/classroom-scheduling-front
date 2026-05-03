@@ -1,9 +1,25 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+const AUTH_TOKEN_KEY = 'portal-auth-token'
+
+export function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY)
+}
+
+export function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token)
+    return
+  }
+
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+}
 
 async function apiRequest(path, options = {}) {
+  const token = getAuthToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {}),
     },
     ...options,
@@ -38,6 +54,10 @@ function queryString(params) {
 
 export const api = {
   getHealth: () => apiRequest('/health'),
+
+  login: (payload) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+  register: (payload) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  getMe: () => apiRequest('/auth/me'),
 
   listEspacos: () => apiRequest('/espacos'),
   listEspacosDisponiveis: () => apiRequest('/espacos/disponiveis'),
