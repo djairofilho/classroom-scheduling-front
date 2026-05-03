@@ -74,5 +74,5 @@ export function toTimeInputValue(value) {
 
 export function combineDateAndTime(date, time) {
   if (!date || !time) return null
-  return new Date(`${date}T${time}:00`).toISOString()
+  return `${date}T${time}:00`
 }

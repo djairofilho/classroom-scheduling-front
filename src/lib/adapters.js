@@ -1,7 +1,8 @@
 import { formatDate, formatRelativeTime, formatTimeRange } from './format'
 
 export const appUser = {
-  name: 'Marina Silva',
+  name: import.meta.env.VITE_APP_USER_NAME ?? 'Ana Souza',
+  email: import.meta.env.VITE_APP_USER_EMAIL ?? 'ana.souza@classroom.local',
   roleKey: 'shell.role',
   departmentKey: 'shell.department',
 }
