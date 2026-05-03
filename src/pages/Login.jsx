@@ -63,7 +63,7 @@ export function LoginPage() {
           </ModeButton>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <label>
             <span className="mb-2 block text-sm font-bold text-ink">Email institucional</span>
             <input
@@ -87,9 +87,11 @@ export function LoginPage() {
             />
           </label>
 
-          <Button className="w-full" disabled={submitting || !form.email || form.senha.length < 6}>
-            {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}
-          </Button>
+          <div className="pt-1">
+            <Button className="w-full" disabled={submitting || !form.email || form.senha.length < 6}>
+              {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}
+            </Button>
+          </div>
 
           {message ? <p className="text-sm text-brand-red">{message}</p> : null}
         </form>
