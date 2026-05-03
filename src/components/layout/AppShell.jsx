@@ -5,10 +5,17 @@ import { useI18n } from '../../i18n/I18nProvider'
 
 function navClass({ isActive }) {
   return [
-    'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200',
+    'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
     isActive
       ? 'border-r-4 border-brand-red bg-white text-brand-red shadow-soft'
       : 'text-ink-muted hover:bg-warm-stone hover:text-ink',
+  ].join(' ')
+}
+
+function mobileNavClass({ isActive }) {
+  return [
+    'inline-flex min-w-fit items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition',
+    isActive ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted',
   ].join(' ')
 }
 
@@ -35,24 +42,24 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-brand-paper text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-stroke bg-panel px-5 py-8 lg:flex lg:flex-col">
-        <div className="px-3">
-          <p className="text-xl font-extrabold tracking-tight text-brand-red">{t('shell.brand')}</p>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-stroke bg-panel px-4 py-6 lg:flex lg:flex-col">
+        <div className="px-2">
+          <p className="text-lg font-extrabold tracking-tight text-brand-red">{t('shell.brand')}</p>
           <p className="mt-1 text-sm font-medium text-ink-muted">{t('shell.subtitle')}</p>
         </div>
 
-        <nav className="mt-10 flex flex-1 flex-col gap-2">
+        <nav className="mt-8 flex flex-1 flex-col gap-1.5">
           {navigation.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              <AppIcon name={item.icon} className="h-5 w-5" />
+              <AppIcon name={item.icon} className="h-4 w-4" />
               <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-8 border-t border-stroke px-3 pt-6">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-ink-muted">{t('shell.language')}</p>
-          <div className="mb-5 flex gap-2">
+        <div className="mt-6 border-t border-stroke px-2 pt-5">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">{t('shell.language')}</p>
+          <div className="mb-4 flex gap-2">
             <button
               className={`rounded-full px-3 py-1 text-xs font-semibold ${locale === 'pt-BR' ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted'}`}
               onClick={() => setLocale('pt-BR')}
@@ -70,28 +77,28 @@ export function AppShell() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-red/10 text-sm font-bold text-brand-red">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-red/10 text-xs font-bold text-brand-red">
               {initials}
             </div>
-            <div>
-              <p className="break-all text-sm font-semibold text-ink">{userLabel}</p>
-              <p className="text-sm text-ink-muted">{roleLabel}</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-ink">{userLabel}</p>
+              <p className="text-xs text-ink-muted">{roleLabel}</p>
             </div>
           </div>
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-stroke bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-4 lg:px-10">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 lg:px-8">
             <div className="flex flex-1 items-center gap-3">
-              <div className="relative w-full max-w-xl">
+              <div className="relative w-full max-w-2xl">
                 <AppIcon
                   name="search"
                   className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
                 />
                 <input
-                  className="h-12 w-full rounded-full border border-stroke bg-warm-stone pl-11 pr-4 text-sm text-ink outline-none transition focus:border-brand-red focus:bg-white focus:ring-4 focus:ring-brand-red/10"
+                  className="h-10 w-full rounded-full border border-stroke bg-warm-stone pl-11 pr-4 text-sm text-ink outline-none transition focus:border-brand-red focus:bg-white focus:ring-4 focus:ring-brand-red/10"
                   placeholder={t('shell.searchPlaceholder')}
                   type="text"
                 />
@@ -99,11 +106,11 @@ export function AppShell() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="flex h-11 w-11 items-center justify-center rounded-full border border-stroke bg-white text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red">
-                <AppIcon name="bell" className="h-5 w-5" />
+              <button className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red">
+                <AppIcon name="bell" className="h-4 w-4" />
               </button>
-              <button className="flex items-center gap-3 rounded-full border border-stroke bg-white px-3 py-2 transition hover:border-brand-red/30">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy/10 text-sm font-bold text-navy">
+              <button className="hidden items-center gap-3 rounded-full border border-stroke bg-white px-3 py-1.5 transition hover:border-brand-red/30 sm:flex">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy/10 text-xs font-bold text-navy">
                   {initials}
                 </div>
                 <div className="hidden text-left sm:block">
@@ -112,7 +119,7 @@ export function AppShell() {
                 </div>
               </button>
               <button
-                className="rounded-full border border-stroke bg-white px-4 py-2 text-sm font-semibold text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red"
+                className="rounded-full border border-stroke bg-white px-3 py-2 text-sm font-semibold text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red"
                 onClick={logout}
                 type="button"
               >
@@ -120,9 +127,17 @@ export function AppShell() {
               </button>
             </div>
           </div>
+          <nav className="flex gap-2 overflow-x-auto border-t border-stroke px-4 py-2 lg:hidden">
+            {navigation.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} className={mobileNavClass}>
+                <AppIcon name={item.icon} className="h-4 w-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
         </header>
 
-        <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10">
+        <main className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8">
           <Outlet />
         </main>
       </div>
