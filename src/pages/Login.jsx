@@ -43,18 +43,18 @@ export function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-brand-paper px-5 py-10 text-ink">
-      <Card className="w-full max-w-md">
-        <div className="mb-8">
+      <Card className="w-full max-w-md p-8">
+        <div className="mb-7">
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-red">Portal de Espacos</p>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">
             {mode === 'register' ? 'Criar conta' : 'Entrar'}
           </h1>
-          <p className="mt-2 text-sm leading-6 text-ink-muted">
+          <p className="mt-3 text-sm leading-7 text-ink-muted">
             Use seu email institucional do Insper para acessar reservas e notificacoes.
           </p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-warm-stone p-1">
+        <div className="mb-8 grid grid-cols-2 gap-2 rounded-2xl bg-warm-stone p-1">
           <ModeButton active={mode === 'login'} onClick={() => setMode('login')}>
             Entrar
           </ModeButton>
@@ -63,11 +63,11 @@ export function LoginPage() {
           </ModeButton>
         </div>
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <label>
-            <span className="mb-2 block text-sm font-bold text-ink">Email institucional</span>
+        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-ink">Email institucional</span>
             <input
-              className="h-13 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
+              className="h-14 w-full rounded-2xl border border-stroke bg-panel px-5 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
               placeholder="aluno@al.insper.edu.br"
               type="email"
               value={form.email}
@@ -75,10 +75,10 @@ export function LoginPage() {
             />
           </label>
 
-          <label>
-            <span className="mb-2 block text-sm font-bold text-ink">Senha</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-ink">Senha</span>
             <input
-              className="h-13 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
+              className="h-14 w-full rounded-2xl border border-stroke bg-panel px-5 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
               minLength={6}
               placeholder="Minimo de 6 caracteres"
               type="password"
@@ -87,8 +87,8 @@ export function LoginPage() {
             />
           </label>
 
-          <div className="pt-1">
-            <Button className="w-full" disabled={submitting || !form.email || form.senha.length < 6}>
+          <div className="pt-2">
+            <Button className="h-14 w-full text-base" disabled={submitting || !form.email || form.senha.length < 6}>
               {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}
             </Button>
           </div>
