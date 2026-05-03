@@ -6,12 +6,14 @@ import { Badge, Card } from '../components/layout/ui'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
-import { appUser, createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '../lib/adapters'
+import { createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '../lib/adapters'
+import { useAuth } from '../lib/authContext'
 import { getCurrentSolicitante } from '../lib/currentUser'
 import { AppIcon } from '../lib/icons'
 
 export function DashboardPage() {
   const { t } = useI18n()
+  const { user } = useAuth()
   const loadDashboard = useCallback(async () => {
     const currentSolicitante = await getCurrentSolicitante()
 
@@ -45,7 +47,7 @@ export function DashboardPage() {
   return (
     <>
       <PageIntro
-        eyebrow={t('dashboard.greeting', { name: appUser.name.split(' ')[0] })}
+        eyebrow={t('dashboard.greeting', { name: user.email })}
         title={t('dashboard.title')}
         description={t('dashboard.description')}
         actions={
