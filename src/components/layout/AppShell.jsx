@@ -90,21 +90,7 @@ export function AppShell() {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-stroke bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 lg:px-8">
-            <div className="flex flex-1 items-center gap-3">
-              <div className="relative w-full max-w-2xl">
-                <AppIcon
-                  name="search"
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
-                />
-                <input
-                  className="h-10 w-full rounded-full border border-stroke bg-warm-stone pl-11 pr-4 text-sm text-ink outline-none transition focus:border-brand-red focus:bg-white focus:ring-4 focus:ring-brand-red/10"
-                  placeholder={t('shell.searchPlaceholder')}
-                  type="text"
-                />
-              </div>
-            </div>
-
+          <div className="mx-auto flex max-w-[1600px] items-center justify-end gap-3 px-4 py-3 lg:px-8">
             <div className="flex items-center gap-3">
               <button className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red">
                 <AppIcon name="bell" className="h-4 w-4" />
@@ -138,7 +124,9 @@ export function AppShell() {
         </header>
 
         <main className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8">
-          <Outlet />
+          <div className="origin-top-left lg:w-[125%] lg:scale-80">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
