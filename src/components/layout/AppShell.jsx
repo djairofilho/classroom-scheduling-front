@@ -19,7 +19,7 @@ export function AppShell() {
     { to: '/', label: t('shell.nav.dashboard'), icon: 'dashboard', end: true },
     { to: '/espacos', label: t('shell.nav.search'), icon: 'search' },
     { to: '/reservas/nova', label: t('shell.nav.newReservation'), icon: 'plus-square' },
-    { to: '/reservas', label: t('shell.nav.bookings'), icon: 'calendar' },
+    { to: '/reservas', label: t('shell.nav.bookings'), icon: 'calendar' , end: true},
     { to: '/notificacoes', label: t('shell.nav.notifications'), icon: 'bell' },
     { to: '/admin/espacos', label: t('shell.nav.admin'), icon: 'shield' },
     { to: '/configuracoes/api', label: t('shell.nav.settings'), icon: 'settings' },
