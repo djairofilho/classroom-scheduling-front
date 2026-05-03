@@ -6,13 +6,15 @@ import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { mapReserva } from '../lib/adapters'
+import { getCurrentSolicitante } from '../lib/currentUser'
 
 export function MyBookingsPage() {
   const { t, tm } = useI18n()
   const [selectedTab, setSelectedTab] = useState('active')
   const [selectedBooking, setSelectedBooking] = useState(null)
   const loadBookings = useCallback(async () => {
-    const reservas = await api.listReservas()
+    const currentSolicitante = await getCurrentSolicitante()
+    const reservas = await api.listReservasPorSolicitante(currentSolicitante.id)
     return reservas.map(mapReserva)
   }, [])
 
