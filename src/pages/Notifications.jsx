@@ -6,13 +6,15 @@ import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
 import { api } from '../lib/api'
 import { mapNotificacao } from '../lib/adapters'
+import { getCurrentSolicitante } from '../lib/currentUser'
 
 export function NotificationsPage() {
   const { t } = useI18n()
   const [tab, setTab] = useState('all')
   const [renderedAt] = useState(() => Date.now())
   const loadNotifications = useCallback(async () => {
-    const notificacoes = await api.listNotificacoes()
+    const currentSolicitante = await getCurrentSolicitante()
+    const notificacoes = await api.listNotificacoesPorDestinatario(currentSolicitante.id)
     return notificacoes.map(mapNotificacao)
   }, [])
 
