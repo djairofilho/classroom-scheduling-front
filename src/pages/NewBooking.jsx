@@ -5,18 +5,16 @@ import { PageIntro } from '../components/layout/PageIntro'
 import { Button, Card } from '../components/layout/ui'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { useI18n } from '../i18n/I18nProvider'
-import { api, isNotFoundError } from '../lib/api'
+import { api } from '../lib/api'
 import { mapEspaco, mapPredio } from '../lib/adapters'
 import { useAuth } from '../lib/authContext'
 import { combineDateAndTime } from '../lib/format'
 
 export function NewBookingPage() {
   const { t } = useI18n()
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({
-    nome: '',
-    email: '',
     predioId: '',
     espacoId: searchParams.get('espacoId') ?? '',
     data: '',
@@ -24,7 +22,6 @@ export function NewBookingPage() {
     fim: '',
     motivo: '',
   })
-  const [lookupMessage, setLookupMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
 
@@ -61,7 +58,7 @@ export function NewBookingPage() {
     building: selectedSpace?.building ?? '--',
     capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '--',
     dateTime: form.data && form.inicio && form.fim ? `${form.data} ${form.inicio} - ${form.fim}` : '--',
-    requester: isAdmin ? form.nome || form.email || '--' : user.email,
+    requester: user.email,
   }
 
   const selectedBuildingId =
@@ -69,52 +66,14 @@ export function NewBookingPage() {
     selectedSpace?.buildingId?.toString() ||
     ''
 
-  async function handleLookup() {
-    if (!isAdmin || !form.email) return
-
-    try {
-      const solicitante = await api.findSolicitanteByEmail(form.email)
-      setForm((current) => ({ ...current, nome: solicitante.nome ?? solicitante.email }))
-      setLookupMessage(t('bookingForm.requesterFound'))
-    } catch (caughtError) {
-      if (isNotFoundError(caughtError)) {
-        setLookupMessage(t('bookingForm.requesterMissing'))
-        return
-      }
-
-      setLookupMessage(t('bookingForm.requesterLookupError'))
-    }
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
     setSubmitting(true)
     setSubmitMessage('')
 
     try {
-      let solicitanteId = user.id
-
-      if (isAdmin) {
-        let solicitante
-
-        try {
-          solicitante = await api.findSolicitanteByEmail(form.email)
-        } catch (caughtError) {
-          if (!isNotFoundError(caughtError)) {
-            throw caughtError
-          }
-
-          solicitante = await api.createSolicitante({
-            nome: form.nome,
-            email: form.email,
-          })
-        }
-
-        solicitanteId = solicitante.id
-      }
-
       await api.createReserva({
-        solicitanteId,
+        solicitanteId: user.id,
         espacoId: Number(form.espacoId),
         inicio: combineDateAndTime(form.data, form.inicio),
         fim: combineDateAndTime(form.data, form.fim),
@@ -146,33 +105,12 @@ export function NewBookingPage() {
               title={t('bookingForm.requesterTitle')}
               description={t('bookingForm.requesterDescription')}
             >
-              {isAdmin ? (
-                <>
-                  <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
-                    <Field
-                      label={t('bookingForm.requesterEmail')}
-                      placeholder="nome.sobrenome@insper.edu.br"
-                      value={form.email}
-                      onChange={(value) => setForm((current) => ({ ...current, email: value }))}
-                      onBlur={handleLookup}
-                    />
-                    <Field
-                      label={t('bookingForm.requesterName')}
-                      placeholder={t('bookingForm.requesterName')}
-                      value={form.nome}
-                      onChange={(value) => setForm((current) => ({ ...current, nome: value }))}
-                    />
-                  </div>
-                  {lookupMessage ? <p className="mt-3 text-sm text-ink-muted">{lookupMessage}</p> : null}
-                </>
-              ) : (
-                <div className="rounded-2xl border border-stroke bg-panel px-4 py-3">
-                  <p className="text-sm font-semibold text-ink">{user.email}</p>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                    {user.tipoSolicitante === 'ALUNO' ? 'Aluno' : 'Funcionario'}
-                  </p>
-                </div>
-              )}
+              <div className="rounded-2xl border border-stroke bg-panel px-4 py-3">
+                <p className="text-sm font-semibold text-ink">{user.email}</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                  {user.papel === 'ADMIN' ? 'Admin' : user.tipoSolicitante === 'ALUNO' ? 'Aluno' : 'Funcionario'}
+                </p>
+              </div>
             </FormSection>
 
             <FormSection
@@ -261,7 +199,6 @@ export function NewBookingPage() {
                   className="w-full"
                   disabled={
                     submitting ||
-                    (isAdmin && (!form.email || !form.nome)) ||
                     !form.espacoId ||
                     !form.data ||
                     !form.inicio ||
