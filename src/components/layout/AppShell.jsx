@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { appUser } from '../../lib/adapters'
+import { useAuth } from '../../lib/authContext'
 import { AppIcon } from '../../lib/icons'
 import { useI18n } from '../../i18n/I18nProvider'
 
@@ -14,6 +14,10 @@ function navClass({ isActive }) {
 
 export function AppShell() {
   const { locale, setLocale, t } = useI18n()
+  const { user, isAdmin, logout } = useAuth()
+  const userLabel = user?.email ?? ''
+  const roleLabel = isAdmin ? 'Admin' : user?.tipoSolicitante === 'ALUNO' ? 'Aluno' : 'Funcionario'
+  const initials = userLabel.slice(0, 2).toUpperCase()
 
   const navigation = [
     { to: '/', label: t('shell.nav.dashboard'), icon: 'dashboard', end: true },
@@ -21,8 +25,12 @@ export function AppShell() {
     { to: '/reservas/nova', label: t('shell.nav.newReservation'), icon: 'plus-square' },
     { to: '/reservas', label: t('shell.nav.bookings'), icon: 'calendar' , end: true},
     { to: '/notificacoes', label: t('shell.nav.notifications'), icon: 'bell' },
-    { to: '/admin/espacos', label: t('shell.nav.admin'), icon: 'shield' },
-    { to: '/configuracoes/api', label: t('shell.nav.settings'), icon: 'settings' },
+    ...(isAdmin
+      ? [
+          { to: '/admin/espacos', label: t('shell.nav.admin'), icon: 'shield' },
+          { to: '/configuracoes/api', label: t('shell.nav.settings'), icon: 'settings' },
+        ]
+      : []),
   ]
 
   return (
@@ -63,15 +71,11 @@ export function AppShell() {
 
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-red/10 text-sm font-bold text-brand-red">
-              {appUser.name
-                .split(' ')
-                .slice(0, 2)
-                .map((part) => part[0])
-                .join('')}
+              {initials}
             </div>
             <div>
-              <p className="text-sm font-semibold text-ink">{appUser.name}</p>
-              <p className="text-sm text-ink-muted">{t(appUser.roleKey)}</p>
+              <p className="break-all text-sm font-semibold text-ink">{userLabel}</p>
+              <p className="text-sm text-ink-muted">{roleLabel}</p>
             </div>
           </div>
         </div>
@@ -100,12 +104,19 @@ export function AppShell() {
               </button>
               <button className="flex items-center gap-3 rounded-full border border-stroke bg-white px-3 py-2 transition hover:border-brand-red/30">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy/10 text-sm font-bold text-navy">
-                  MS
+                  {initials}
                 </div>
                 <div className="hidden text-left sm:block">
-                  <p className="text-sm font-semibold text-ink">{appUser.name}</p>
-                  <p className="text-xs text-ink-muted">{t(appUser.departmentKey)}</p>
+                  <p className="max-w-56 truncate text-sm font-semibold text-ink">{userLabel}</p>
+                  <p className="text-xs text-ink-muted">{roleLabel}</p>
                 </div>
+              </button>
+              <button
+                className="rounded-full border border-stroke bg-white px-4 py-2 text-sm font-semibold text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red"
+                onClick={logout}
+                type="button"
+              >
+                Sair
               </button>
             </div>
           </div>
