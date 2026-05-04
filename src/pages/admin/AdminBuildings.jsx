@@ -64,7 +64,7 @@ export function AdminBuildingsPage() {
           </Button>
         }
       />
-      <AdminTabs />
+      <AdminTabs pair="spaces" />
 
       {loading && <LoadingBlock label={t('async.buildingsLoad')} />}
       {error && <ErrorBlock message={t('async.buildingsError')} />}

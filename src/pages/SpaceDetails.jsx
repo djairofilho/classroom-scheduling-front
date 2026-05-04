@@ -65,19 +65,15 @@ export function SpaceDetailsPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <PageHeader
-        title={space.name}
-        description={space.building}
-        icon={Building2}
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/espacos">
-              <ArrowLeft className="h-4 w-4" />
-              {t('bookings.back')}
-            </Link>
-          </Button>
-        }
-      />
+      <div className="mb-4">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/espacos">
+            <ArrowLeft className="h-4 w-4" />
+            {t('bookings.back')}
+          </Link>
+        </Button>
+      </div>
+      <PageHeader title={space.name} description={space.building} icon={Building2} />
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">

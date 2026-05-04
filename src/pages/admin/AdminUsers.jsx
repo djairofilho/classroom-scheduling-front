@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Search, Users as UsersIcon, UserPlus } from 'lucide-react'
+import { ChevronDown, Edit, Search, Trash2, Users as UsersIcon, UserPlus } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -10,6 +10,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
@@ -72,7 +80,7 @@ export function AdminUsersPage() {
           </Button>
         }
       />
-      <AdminTabs />
+      <AdminTabs pair="users" />
 
       {loading && <LoadingBlock label={t('async.usersLoad')} />}
       {error && <ErrorBlock message={t('async.usersError')} />}
@@ -115,9 +123,26 @@ export function AdminUsersPage() {
                     <span className="text-xs text-muted-foreground">
                       {user.requests} {user.requests === 1 ? 'solicitação' : 'solicitações'}
                     </span>
-                    <Button variant="ghost" size="sm">
-                      {t('admin.users.manage')}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Status
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel>Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Edit className="h-4 w-4" />
+                          {t('common.edit')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                          {t('admin.users.manage')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </li>
               ))}

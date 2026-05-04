@@ -39,7 +39,7 @@ export function ApiStatusPage() {
   return (
     <div className="mx-auto w-full max-w-7xl">
       <PageHeader title={t('admin.api.title')} description={t('admin.api.description')} icon={Server} />
-      <AdminTabs />
+      <AdminTabs pair="users" />
 
       {loading && <LoadingBlock label={t('async.apiLoad')} />}
       {error && <ErrorBlock message={t('async.apiError')} />}

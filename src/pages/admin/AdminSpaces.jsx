@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Building2, PlusSquare } from 'lucide-react'
+import { Building2, ChevronDown, Edit, PlusSquare, ToggleLeft } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -10,6 +10,14 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
@@ -75,17 +83,16 @@ export function AdminSpacesPage() {
           </Button>
         }
       />
-      <AdminTabs />
+      <AdminTabs pair="spaces" />
 
       {loading && <LoadingBlock label={t('async.adminSpacesLoad')} />}
       {error && <ErrorBlock message={t('async.adminSpacesError')} />}
 
       {!loading && !error && data && (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <Card className="h-fit p-5">
-            <h2 className="text-base font-semibold">{t('admin.spaces.filters')}</h2>
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-col gap-2">
+        <>
+          <Card className="mb-6 p-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex min-w-[200px] flex-1 flex-col gap-2">
                 <Label htmlFor="admin-building-filter">{t('admin.spaces.building')}</Label>
                 <select
                   id="admin-building-filter"
@@ -102,7 +109,7 @@ export function AdminSpacesPage() {
                 </select>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex h-10 items-center gap-3">
                 <Switch
                   id="admin-only-available"
                   checked={onlyAvailable}
@@ -119,38 +126,57 @@ export function AdminSpacesPage() {
             <EmptyState title="Nenhum espaço" description="Ajuste os filtros." />
           ) : (
             <div className="space-y-3">
-              {filteredSpaces.map((space) => (
-                <Card key={space.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold">{space.name}</h3>
-                      <StatusBadge statusKey={space.statusKey} />
+              {filteredSpaces.map((space) => {
+                const isAvailable = space.statusKey === 'common.statuses.available'
+                return (
+                  <Card
+                    key={space.id}
+                    className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold">{space.name}</h3>
+                        <StatusBadge statusKey={space.statusKey} />
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t(space.typeKey)} · {space.building} ·{' '}
+                        {t('common.patterns.peopleCount', { count: space.capacity })}
+                      </p>
+                      {space.maintenanceReason && (
+                        <p className="mt-1 text-xs text-destructive">{space.maintenanceReason}</p>
+                      )}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t(space.typeKey)} · {space.building} · {t('common.patterns.peopleCount', { count: space.capacity })}
-                    </p>
-                    {space.maintenanceReason && (
-                      <p className="mt-1 text-xs text-destructive">{space.maintenanceReason}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm">
-                      {t('common.edit')}
-                    </Button>
-                    <Button
-                      variant={space.statusKey === 'common.statuses.available' ? 'destructive' : 'default'}
-                      size="sm"
-                      disabled={pendingId === space.id}
-                      onClick={() => handleToggleAvailability(space)}
-                    >
-                      {pendingId === space.id ? t('admin.spaces.saving') : t('admin.spaces.toggle')}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={pendingId === space.id}>
+                          {pendingId === space.id ? t('admin.spaces.saving') : 'Status'}
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Edit className="h-4 w-4" />
+                          {t('common.edit')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className={isAvailable ? 'text-destructive focus:text-destructive' : ''}
+                          onClick={() => handleToggleAvailability(space)}
+                        >
+                          <ToggleLeft className="h-4 w-4" />
+                          {isAvailable
+                            ? t('common.statuses.unavailable')
+                            : t('common.statuses.available')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </Card>
+                )
+              })}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   )

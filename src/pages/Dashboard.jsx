@@ -1,11 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, Building2, Calendar, ChevronRight, ListChecks, PlusSquare, Search, Sparkles } from 'lucide-react'
+import { Bell, Calendar, ChevronRight, ListChecks, PlusSquare, Search, Sparkles } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { QuickActionCard } from '@/components/common/QuickActionCard'
 import { MeetingsList } from '@/components/common/MeetingsList'
 import { MiniCalendar } from '@/components/common/MiniCalendar'
@@ -13,16 +12,9 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
-import { createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '@/lib/adapters'
+import { mapEspaco, mapNotificacao, mapPredio, mapReserva } from '@/lib/adapters'
 import { useAuth } from '@/lib/authContext'
 import { getCurrentSolicitante } from '@/lib/currentUser'
-
-const METRIC_ICONS = {
-  calendar: Calendar,
-  building: Building2,
-  bell: Bell,
-  layers: ListChecks,
-}
 
 export function DashboardPage() {
   const { t } = useI18n()
@@ -51,7 +43,6 @@ export function DashboardPage() {
 
   const { data, loading, error } = useAsyncData(loadDashboard)
 
-  const metrics = useMemo(() => (data ? createDashboardMetrics(data) : []), [data])
   const nextBooking = data?.reservasAtivas?.[0] ?? null
 
   const highlightedDates = useMemo(() => {
@@ -67,7 +58,7 @@ export function DashboardPage() {
     <div className="mx-auto w-full max-w-7xl">
       <div className="mb-6">
         <p className="text-sm text-muted-foreground">
-          Olá, <span className="font-medium text-foreground">{greetingName}</span> 👋
+          Olá, <span className="font-medium text-foreground">{greetingName}</span>
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">{t('dashboard.title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.description')}</p>
@@ -103,23 +94,6 @@ export function DashboardPage() {
 
       {!loading && !error && data && (
         <>
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics.map((item) => {
-              const Icon = METRIC_ICONS[item.icon] ?? Calendar
-              return (
-                <Card key={item.labelKey} className="p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      {t(item.labelKey)}
-                    </p>
-                    <Icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <p className="mt-3 text-3xl font-bold tracking-tight">{item.value}</p>
-                </Card>
-              )
-            })}
-          </section>
-
           <section className="mt-6 grid gap-4 lg:grid-cols-12">
             <Card className="p-5 lg:col-span-4">
               <div className="mb-3 flex items-center justify-between">
@@ -221,13 +195,6 @@ export function DashboardPage() {
         </>
       )}
 
-      {loading && !data && (
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </section>
-      )}
     </div>
   )
 }
