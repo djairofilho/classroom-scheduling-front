@@ -1,19 +1,25 @@
 import { useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
-import { PageIntro } from '../components/layout/PageIntro'
-import { Badge, Card } from '../components/layout/ui'
-import { useAsyncData } from '../hooks/useAsyncData'
-import { useI18n } from '../i18n/I18nProvider'
-import { api } from '../lib/api'
-import { createDashboardMetrics, mapEspaco, mapNotificacao, mapPredio, mapReserva } from '../lib/adapters'
-import { useAuth } from '../lib/authContext'
-import { getCurrentSolicitante } from '../lib/currentUser'
-import { AppIcon } from '../lib/icons'
+import { Bell, Calendar, ChevronRight, ListChecks, PlusSquare, Search, Sparkles } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { QuickActionCard } from '@/components/common/QuickActionCard'
+import { MeetingsList } from '@/components/common/MeetingsList'
+import { MiniCalendar } from '@/components/common/MiniCalendar'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapEspaco, mapNotificacao, mapPredio, mapReserva } from '@/lib/adapters'
+import { useAuth } from '@/lib/authContext'
+import { getCurrentSolicitante } from '@/lib/currentUser'
 
 export function DashboardPage() {
   const { t } = useI18n()
   const { user } = useAuth()
+
   const loadDashboard = useCallback(async () => {
     const currentSolicitante = await getCurrentSolicitante()
 
@@ -37,126 +43,158 @@ export function DashboardPage() {
 
   const { data, loading, error } = useAsyncData(loadDashboard)
 
-  const metrics = useMemo(() => {
-    if (!data) return []
-    return createDashboardMetrics(data)
-  }, [data])
-
   const nextBooking = data?.reservasAtivas?.[0] ?? null
 
+  const highlightedDates = useMemo(() => {
+    if (!data?.reservasAtivas) return []
+    return data.reservasAtivas
+      .map((r) => (r.start ? new Date(r.start).toISOString().slice(0, 10) : null))
+      .filter(Boolean)
+  }, [data])
+
+  const greetingName = user?.email?.split('@')[0] ?? ''
+
   return (
-    <>
-      <PageIntro
-        eyebrow={t('dashboard.greeting', { name: user.email })}
-        title={t('dashboard.title')}
-        description={t('dashboard.description')}
-        actions={
-          <>
-            <Link className="inline-flex items-center justify-center rounded-xl border border-stroke bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-warm-stone" to="/espacos">
-              {t('dashboard.viewAvailable')}
-            </Link>
-            <Link className="inline-flex items-center justify-center rounded-xl bg-brand-red px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-red-dark" to="/reservas/nova">
-              {t('dashboard.newReservation')}
-            </Link>
-          </>
-        }
-      />
+    <div className="mx-auto w-full max-w-7xl">
+      <div className="mb-6">
+        <p className="text-sm text-muted-foreground">
+          Olá, <span className="font-medium text-foreground">{greetingName}</span>
+        </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">{t('dashboard.title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.description')}</p>
+      </div>
 
-      {loading ? <LoadingBlock label={t('async.dashboardLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.dashboardError')} /> : null}
+      <div className="grid gap-4 md:grid-cols-2">
+        <QuickActionCard
+          title={t('dashboard.viewAvailable')}
+          description={t('search.description')}
+          icon={Search}
+          to="/espacos"
+          variant="primary"
+        />
+        <QuickActionCard
+          title={t('dashboard.newReservation')}
+          description={t('bookingForm.description')}
+          icon={PlusSquare}
+          to="/reservas/nova"
+          variant="muted"
+        />
+      </div>
 
-      {!loading && !error && data ? (
+      {loading && (
+        <div className="mt-6">
+          <LoadingBlock label={t('async.dashboardLoad')} />
+        </div>
+      )}
+      {error && (
+        <div className="mt-6">
+          <ErrorBlock message={t('async.dashboardError')} />
+        </div>
+      )}
+
+      {!loading && !error && data && (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {metrics.map((item) => (
-              <Card key={item.labelKey} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">{t(item.labelKey)}</p>
-                  <AppIcon
-                    name={item.icon}
-                    className={[
-                      'h-4 w-4',
-                      item.tone === 'primary'
-                        ? 'text-brand-red'
-                        : item.tone === 'secondary'
-                          ? 'text-navy'
-                          : item.tone === 'tertiary'
-                            ? 'text-sky-700'
-                            : 'text-ink-muted',
-                    ].join(' ')}
-                  />
-                </div>
-                <p className="text-4xl font-extrabold tracking-tight text-ink">{item.value}</p>
-              </Card>
-            ))}
-          </section>
-
-          <section className="mt-5 grid gap-5 xl:grid-cols-12">
-            <Card className="xl:col-span-8">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-ink">{t('dashboard.nextBooking')}</h2>
-                  <p className="mt-1 text-sm text-ink-muted">{t('dashboard.nextBookingSummary')}</p>
-                </div>
-                <Badge tone="danger">{nextBooking ? t('common.statuses.confirmed') : t('common.statuses.noSchedule')}</Badge>
-              </div>
-
-              <div className="mt-5 grid gap-5 border-t border-stroke pt-5 md:grid-cols-2">
-                <div>
-                  <p className="text-sm text-ink-muted">{t('dashboard.location')}</p>
-                  <p className="mt-1 text-2xl font-bold text-ink">{nextBooking?.space ?? '--'}</p>
-                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.building ?? t('dashboard.noLocation')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-ink-muted">{t('dashboard.timeReason')}</p>
-                  <p className="mt-1 text-2xl font-bold text-ink">{nextBooking?.time ?? '--'}</p>
-                  <p className="mt-1 text-base text-ink-muted">{nextBooking?.reason ?? t('dashboard.noActiveReservations')}</p>
-                </div>
-              </div>
-
-              <div className="mt-5 flex justify-end">
-                <Link className="inline-flex items-center gap-2 text-sm font-bold text-brand-red" to={nextBooking?.espacoId ? `/espacos/${nextBooking.espacoId}` : '/espacos'}>
-                  {t('dashboard.fullDetails')}
-                  <AppIcon name="chevron-right" className="h-4 w-4" />
-                </Link>
-              </div>
-            </Card>
-
-            <Card className="bg-panel xl:col-span-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-ink">{t('dashboard.recent')}</h2>
-                <Link className="text-sm font-semibold text-ink-muted" to="/notificacoes">
+          <section className="mt-6 grid gap-4 lg:grid-cols-12">
+            <Card className="p-5 lg:col-span-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">{t('bookings.title')}</h2>
+                <Link to="/reservas" className="text-xs font-medium text-primary hover:underline">
                   {t('common.viewAll')}
                 </Link>
               </div>
+              <MeetingsList reservas={data.reservasAtivas.slice(0, 4)} loading={loading} />
+            </Card>
 
-              <div className="mt-4 space-y-3">
-                {data.notificacoes.slice(0, 3).map((item) => (
-                  <article key={item.id} className="rounded-xl border border-stroke bg-white p-3.5">
-                    <div className="flex gap-3">
-                      <span
-                        className={[
-                          'mt-1 h-2.5 w-2.5 rounded-full',
-                          item.tone === 'primary'
-                            ? 'bg-brand-red'
-                            : item.tone === 'warning'
-                              ? 'bg-amber-500'
-                              : 'bg-navy',
-                        ].join(' ')}
-                      />
-                      <div>
-                        <p className="font-semibold text-ink">{t(item.titleKey)}</p>
-                        <p className="mt-1 text-sm leading-5 text-ink-muted">{item.body}</p>
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted/80">{item.time}</p>
-                      </div>
-                    </div>
-                  </article>
-                ))}
+            <Card className="p-5 lg:col-span-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">{t('dashboard.nextBooking')}</h2>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
               </div>
+              <MiniCalendar highlightedDates={highlightedDates} />
+            </Card>
+
+            <div className="space-y-4 lg:col-span-4">
+              <Card className="overflow-hidden p-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">{t('dashboard.nextBooking')}</h2>
+                  <ListChecks className="h-4 w-4 text-muted-foreground" />
+                </div>
+                {nextBooking ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-base font-semibold">{nextBooking.space}</p>
+                      <StatusBadge statusKey={nextBooking.statusKey} />
+                    </div>
+                    <p className="text-sm text-muted-foreground">{nextBooking.building}</p>
+                    <p className="text-sm">
+                      <span className="font-medium">{nextBooking.date}</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      {nextBooking.time}
+                    </p>
+                    <p className="line-clamp-2 text-xs text-muted-foreground">{nextBooking.reason}</p>
+                    <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+                      <Link to={nextBooking.espacoId ? `/espacos/${nextBooking.espacoId}` : '/reservas'}>
+                        {t('dashboard.fullDetails')}
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t('dashboard.noActiveReservations')}</p>
+                )}
+              </Card>
+
+              <Card
+                style={{ background: 'var(--gradient-primary)' }}
+                className="relative overflow-hidden border-0 p-5 text-primary-foreground"
+              >
+                <Sparkles className="absolute -right-3 -top-3 h-24 w-24 opacity-15" />
+                <h3 className="text-base font-semibold">{t('shell.brand')}</h3>
+                <p className="mt-1 text-sm text-white/85">{t('dashboard.nextBookingSummary')}</p>
+                <Link
+                  to="/espacos"
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-medium transition hover:bg-white/25"
+                >
+                  {t('dashboard.viewAvailable')}
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Card>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <Card className="p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">{t('dashboard.recent')}</h2>
+                <Link to="/notificacoes" className="text-xs font-medium text-primary hover:underline">
+                  {t('common.viewAll')}
+                </Link>
+              </div>
+              {data.notificacoes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">—</p>
+              ) : (
+                <ul className="space-y-3">
+                  {data.notificacoes.slice(0, 3).map((item) => (
+                    <li key={item.id} className="flex gap-3 rounded-xl border bg-card p-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary">
+                        <Bell className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">{t(item.titleKey)}</p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{item.body}</p>
+                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">
+                          {item.time}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
           </section>
         </>
-      ) : null}
-    </>
+      )}
+
+    </div>
   )
 }

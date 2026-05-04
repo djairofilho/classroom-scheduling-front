@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { Button, Card } from '../components/layout/ui'
-import { useAuth } from '../lib/authContext'
+
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/lib/authContext'
+import { useI18n } from '@/i18n/I18nProvider'
 
 export function LoginPage() {
   const { user, login, register } = useAuth()
+  const { t } = useI18n()
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ email: '', senha: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -22,10 +29,7 @@ export function LoginPage() {
     setMessage('')
 
     try {
-      const payload = {
-        email: form.email,
-        senha: form.senha,
-      }
+      const payload = { email: form.email, senha: form.senha }
 
       if (mode === 'register') {
         await register(payload)
@@ -35,81 +39,70 @@ export function LoginPage() {
 
       navigate(location.state?.from?.pathname ?? '/', { replace: true })
     } catch (error) {
-      setMessage(error.message || 'Nao foi possivel autenticar.')
+      setMessage(error.message || 'Não foi possível autenticar.')
     } finally {
       setSubmitting(false)
     }
   }
 
+  const submitDisabled = submitting || !form.email || form.senha.length < 6
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-brand-paper px-5 py-10 text-ink">
-      <Card className="w-full max-w-md p-8">
+    <main
+      className="flex min-h-screen items-center justify-center bg-surface px-4 py-10 text-foreground"
+      style={{ background: 'var(--gradient-soft)' }}
+    >
+      <Card className="w-full max-w-md p-8 shadow-[var(--shadow-elegant)]">
         <div className="mb-7">
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-red">Portal de Espacos</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{t('shell.brand')}</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">
             {mode === 'register' ? 'Criar conta' : 'Entrar'}
           </h1>
-          <p className="mt-3 text-sm leading-7 text-ink-muted">
-            Use seu email institucional do Insper para acessar reservas e notificacoes.
+          <p className="mt-2 text-sm leading-7 text-muted-foreground">
+            Use seu e-mail institucional do Insper para acessar reservas e notificações.
           </p>
         </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-2 rounded-2xl bg-warm-stone p-1">
-          <ModeButton active={mode === 'login'} onClick={() => setMode('login')}>
-            Entrar
-          </ModeButton>
-          <ModeButton active={mode === 'register'} onClick={() => setMode('register')}>
-            Criar conta
-          </ModeButton>
-        </div>
+        <Tabs value={mode} onValueChange={setMode} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Entrar</TabsTrigger>
+            <TabsTrigger value="register">Criar conta</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold text-ink">Email institucional</span>
-            <input
-              className="h-14 w-full rounded-2xl border border-stroke bg-panel px-5 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-              placeholder="aluno@al.insper.edu.br"
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="login-email">E-mail institucional</Label>
+            <Input
+              id="login-email"
               type="email"
+              autoComplete="email"
+              placeholder="aluno@al.insper.edu.br"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold text-ink">Senha</span>
-            <input
-              className="h-14 w-full rounded-2xl border border-stroke bg-panel px-5 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-              minLength={6}
-              placeholder="Minimo de 6 caracteres"
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="login-senha">Senha</Label>
+            <Input
+              id="login-senha"
               type="password"
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              minLength={6}
+              placeholder="Mínimo de 6 caracteres"
               value={form.senha}
               onChange={(event) => setForm((current) => ({ ...current, senha: event.target.value }))}
             />
-          </label>
-
-          <div className="pt-2">
-            <Button className="h-14 w-full text-base" disabled={submitting || !form.email || form.senha.length < 6}>
-              {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}
-            </Button>
           </div>
 
-          {message ? <p className="text-sm text-brand-red">{message}</p> : null}
+          <Button type="submit" size="lg" className="mt-2 w-full" disabled={submitDisabled}>
+            {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}
+          </Button>
+
+          {message && <p className="text-sm font-medium text-destructive">{message}</p>}
         </form>
       </Card>
     </main>
-  )
-}
-
-function ModeButton({ active, children, onClick }) {
-  return (
-    <button
-      className={`h-10 rounded-xl text-sm font-bold transition ${
-        active ? 'bg-white text-brand-red shadow-soft' : 'text-ink-muted hover:text-ink'
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {children}
-    </button>
   )
 }

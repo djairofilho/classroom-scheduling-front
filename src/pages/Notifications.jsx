@@ -1,17 +1,30 @@
 import { useCallback, useMemo, useState } from 'react'
-import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
-import { PageIntro } from '../components/layout/PageIntro'
-import { Button, Card } from '../components/layout/ui'
-import { useAsyncData } from '../hooks/useAsyncData'
-import { useI18n } from '../i18n/I18nProvider'
-import { api } from '../lib/api'
-import { mapNotificacao } from '../lib/adapters'
-import { getCurrentSolicitante } from '../lib/currentUser'
+import { AlertTriangle, Bell, CheckCircle, Info } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { PageHeader } from '@/components/common/PageHeader'
+import { EmptyState } from '@/components/common/EmptyState'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapNotificacao } from '@/lib/adapters'
+import { getCurrentSolicitante } from '@/lib/currentUser'
+import { cn } from '@/lib/utils'
+
+const ACCENT = {
+  primary: { border: 'border-l-primary', icon: Bell, bg: 'bg-primary-soft text-primary' },
+  warning: { border: 'border-l-warning', icon: AlertTriangle, bg: 'bg-warning/10 text-warning' },
+  secondary: { border: 'border-l-secondary', icon: Info, bg: 'bg-secondary text-secondary-foreground' },
+  success: { border: 'border-l-success', icon: CheckCircle, bg: 'bg-success/10 text-success' },
+}
 
 export function NotificationsPage() {
   const { t } = useI18n()
   const [tab, setTab] = useState('all')
-  const [renderedAt] = useState(() => Date.now())
+
   const loadNotifications = useCallback(async () => {
     const currentSolicitante = await getCurrentSolicitante()
     const notificacoes = await api.listNotificacoesPorDestinatario(currentSolicitante.id)
@@ -20,30 +33,25 @@ export function NotificationsPage() {
 
   const { data, loading, error, setData } = useAsyncData(loadNotifications)
 
-  const filteredNotifications = useMemo(() => {
-    const notifications = data ?? []
-    if (tab === 'unread') return notifications.filter((item) => !item.lida)
-    if (tab === 'read') return notifications.filter((item) => item.lida)
-    return notifications
-  }, [data, tab])
+  const buckets = {
+    all: data ?? [],
+    unread: (data ?? []).filter((item) => !item.lida),
+    read: (data ?? []).filter((item) => item.lida),
+  }
 
-  const groupedNotifications = useMemo(() => {
+  const [renderedAt] = useState(() => Date.now())
+  const grouped = useMemo(() => {
     const today = []
     const previous = []
-
-    filteredNotifications.forEach((item) => {
-      const sentAt = new Date(item.enviadaEm)
-      const isToday = Number.isFinite(sentAt.getTime()) && renderedAt - sentAt.getTime() < 24 * 60 * 60 * 1000
-
-      if (isToday) {
-        today.push(item)
-      } else {
-        previous.push(item)
-      }
+    const list = buckets[tab]
+    list.forEach((item) => {
+      const sentAt = new Date(item.enviadaEm).getTime()
+      if (Number.isFinite(sentAt) && renderedAt - sentAt < 24 * 60 * 60 * 1000) today.push(item)
+      else previous.push(item)
     })
-
     return { today, previous }
-  }, [filteredNotifications, renderedAt])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, tab, renderedAt])
 
   async function handleMarkAsRead(notificationId) {
     const updated = await api.marcarNotificacaoComoLida(notificationId)
@@ -52,81 +60,89 @@ export function NotificationsPage() {
   }
 
   return (
-    <>
-      <PageIntro
-        title={t('notifications.title')}
-        description={t('notifications.description')}
-        actions={
-          <div className="inline-flex rounded-full border border-stroke bg-panel p-1">
-            <button className={`rounded-full px-5 py-2 text-sm font-semibold ${tab === 'all' ? 'bg-white text-ink shadow-soft' : 'text-ink-muted'}`} onClick={() => setTab('all')} type="button">
-              {t('common.all')}
-            </button>
-            <button className={`rounded-full px-5 py-2 text-sm font-semibold ${tab === 'unread' ? 'bg-white text-ink shadow-soft' : 'text-ink-muted'}`} onClick={() => setTab('unread')} type="button">
-              {t('common.unread')}
-            </button>
-            <button className={`rounded-full px-5 py-2 text-sm font-semibold ${tab === 'read' ? 'bg-white text-ink shadow-soft' : 'text-ink-muted'}`} onClick={() => setTab('read')} type="button">
-              {t('common.read')}
-            </button>
-          </div>
-        }
-      />
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader title={t('notifications.title')} description={t('notifications.description')} icon={Bell} />
 
-      {loading ? <LoadingBlock label={t('async.notificationsLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.notificationsError')} /> : null}
+      {loading && <LoadingBlock label={t('async.notificationsLoad')} />}
+      {error && <ErrorBlock message={t('async.notificationsError')} />}
 
-      {!loading && !error ? (
-        <div className="space-y-8">
-          <section>
-            <h2 className="mb-4 text-2xl font-bold text-ink">{t('common.today')}</h2>
-            <div className="space-y-4">
-              {groupedNotifications.today.map((item) => (
-                <NotificationCard key={item.id} notification={item} unread={!item.lida} onMarkAsRead={handleMarkAsRead} />
-              ))}
-            </div>
-          </section>
+      {!loading && !error && data && (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="all">
+              {t('common.all')} ({buckets.all.length})
+            </TabsTrigger>
+            <TabsTrigger value="unread">
+              {t('common.unread')} ({buckets.unread.length})
+            </TabsTrigger>
+            <TabsTrigger value="read">
+              {t('common.read')} ({buckets.read.length})
+            </TabsTrigger>
+          </TabsList>
 
-          <section>
-            <h2 className="mb-4 text-2xl font-bold text-ink-muted">{t('common.previous')}</h2>
-            <div className="space-y-4">
-              {groupedNotifications.previous.map((item) => (
-                <NotificationCard key={item.id} notification={item} unread={!item.lida} onMarkAsRead={handleMarkAsRead} />
-              ))}
-            </div>
-          </section>
-        </div>
-      ) : null}
-    </>
+          <TabsContent value={tab} className="mt-4 space-y-6">
+            {buckets[tab].length === 0 ? (
+              <EmptyState title="Nenhuma notificação" description="Você está em dia." icon={Bell} />
+            ) : (
+              <>
+                {grouped.today.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('common.today')}
+                    </h2>
+                    <div className="space-y-3">
+                      {grouped.today.map((item) => (
+                        <NotificationItem key={item.id} item={item} onMarkAsRead={handleMarkAsRead} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {grouped.previous.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('common.previous')}
+                    </h2>
+                    <div className="space-y-3">
+                      {grouped.previous.map((item) => (
+                        <NotificationItem key={item.id} item={item} onMarkAsRead={handleMarkAsRead} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
   )
 }
 
-function NotificationCard({ notification, unread = false, onMarkAsRead }) {
+function NotificationItem({ item, onMarkAsRead }) {
   const { t } = useI18n()
-  const accentClass =
-    notification.tone === 'primary'
-      ? 'border-l-brand-red'
-      : notification.tone === 'warning'
-        ? 'border-l-amber-500'
-        : 'border-l-navy'
+  const accent = ACCENT[item.tone] ?? ACCENT.secondary
+  const Icon = accent.icon
 
   return (
-    <Card className={`border-l-4 ${accentClass}`}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-blush text-brand-red">
-          {notification.tone === 'warning' ? '!' : 'i'}
+    <Card className={cn('flex flex-col gap-3 border-l-4 p-4 md:flex-row md:items-center', accent.border)}>
+      <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', accent.bg)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{t(item.titleKey)}</span>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">{item.time}</span>
+          {!item.lida && <span className="ml-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />}
         </div>
-        <div className="flex-1">
-          <div className="mb-2 flex flex-wrap items-center gap-3">
-            <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-brand-red">{t(notification.titleKey)}</span>
-            <span className="h-1 w-1 rounded-full bg-ink-muted" />
-            <span className="text-sm text-ink-muted">{notification.time}</span>
-            {unread ? <span className="h-2 w-2 rounded-full bg-brand-red" /> : null}
-          </div>
-          <p className="text-base font-semibold text-ink">{notification.body}</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {unread ? <Button tone="ghost" onClick={() => onMarkAsRead(notification.id)}>{t('notifications.markAsRead')}</Button> : null}
-          <Button tone="secondary">{notification.tone === 'warning' ? t('notifications.newReservation') : t('notifications.viewReservation')}</Button>
-        </div>
+        <p className="mt-1 text-sm font-medium">{item.body}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {!item.lida && (
+          <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(item.id)}>
+            {t('notifications.markAsRead')}
+          </Button>
+        )}
       </div>
     </Card>
   )

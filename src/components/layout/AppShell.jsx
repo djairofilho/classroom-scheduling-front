@@ -1,134 +1,21 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../../lib/authContext'
-import { AppIcon } from '../../lib/icons'
-import { useI18n } from '../../i18n/I18nProvider'
+import { Outlet } from 'react-router-dom'
 
-function navClass({ isActive }) {
-  return [
-    'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
-    isActive
-      ? 'border-r-4 border-brand-red bg-white text-brand-red shadow-soft'
-      : 'text-ink-muted hover:bg-warm-stone hover:text-ink',
-  ].join(' ')
-}
-
-function mobileNavClass({ isActive }) {
-  return [
-    'inline-flex min-w-fit items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition',
-    isActive ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted',
-  ].join(' ')
-}
+import { SidebarProvider } from '@/components/ui/sidebar'
+import { AppSidebar } from '@/components/layout/AppSidebar'
+import { Topbar } from '@/components/layout/Topbar'
 
 export function AppShell() {
-  const { locale, setLocale, t } = useI18n()
-  const { user, isAdmin, logout } = useAuth()
-  const userLabel = user?.email ?? ''
-  const roleLabel = isAdmin ? 'Admin' : user?.tipoSolicitante === 'ALUNO' ? 'Aluno' : 'Funcionario'
-  const initials = userLabel.slice(0, 2).toUpperCase()
-
-  const navigation = [
-    { to: '/', label: t('shell.nav.dashboard'), icon: 'dashboard', end: true },
-    { to: '/espacos', label: t('shell.nav.search'), icon: 'search' },
-    { to: '/reservas/nova', label: t('shell.nav.newReservation'), icon: 'plus-square' },
-    { to: '/reservas', label: t('shell.nav.bookings'), icon: 'calendar' , end: true},
-    { to: '/notificacoes', label: t('shell.nav.notifications'), icon: 'bell' },
-    ...(isAdmin
-      ? [
-          { to: '/admin/espacos', label: t('shell.nav.admin'), icon: 'shield' },
-          { to: '/configuracoes/api', label: t('shell.nav.settings'), icon: 'settings' },
-        ]
-      : []),
-  ]
-
   return (
-    <div className="min-h-screen bg-brand-paper text-ink">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-stroke bg-panel px-4 py-6 lg:flex lg:flex-col">
-        <div className="px-2">
-          <p className="text-lg font-extrabold tracking-tight text-brand-red">{t('shell.brand')}</p>
-          <p className="mt-1 text-sm font-medium text-ink-muted">{t('shell.subtitle')}</p>
-        </div>
-
-        <nav className="mt-8 flex flex-1 flex-col gap-1.5">
-          {navigation.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              <AppIcon name={item.icon} className="h-4 w-4" />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="mt-6 border-t border-stroke px-2 pt-5">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">{t('shell.language')}</p>
-          <div className="mb-4 flex gap-2">
-            <button
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${locale === 'pt-BR' ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted'}`}
-              onClick={() => setLocale('pt-BR')}
-              type="button"
-            >
-              PT-BR
-            </button>
-            <button
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${locale === 'en' ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted'}`}
-              onClick={() => setLocale('en')}
-              type="button"
-            >
-              EN
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-red/10 text-xs font-bold text-brand-red">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-ink">{userLabel}</p>
-              <p className="text-xs text-ink-muted">{roleLabel}</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-stroke bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-end gap-3 px-4 py-3 lg:px-8">
-            <div className="flex items-center gap-3">
-              <button className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red">
-                <AppIcon name="bell" className="h-4 w-4" />
-              </button>
-              <button className="hidden items-center gap-3 rounded-full border border-stroke bg-white px-3 py-1.5 transition hover:border-brand-red/30 sm:flex">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy/10 text-xs font-bold text-navy">
-                  {initials}
-                </div>
-                <div className="hidden text-left sm:block">
-                  <p className="max-w-56 truncate text-sm font-semibold text-ink">{userLabel}</p>
-                  <p className="text-xs text-ink-muted">{roleLabel}</p>
-                </div>
-              </button>
-              <button
-                className="rounded-full border border-stroke bg-white px-3 py-2 text-sm font-semibold text-ink-muted transition hover:border-brand-red/30 hover:text-brand-red"
-                onClick={logout}
-                type="button"
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-          <nav className="flex gap-2 overflow-x-auto border-t border-stroke px-4 py-2 lg:hidden">
-            {navigation.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={mobileNavClass}>
-                <AppIcon name={item.icon} className="h-4 w-4" />
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
-        </header>
-
-        <main className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8">
-          <div className="origin-top-left lg:w-[125%] lg:scale-80">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-surface">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar />
+          <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
             <Outlet />
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }

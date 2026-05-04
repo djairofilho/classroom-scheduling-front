@@ -1,18 +1,35 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../components/layout/AsyncState'
-import { PageIntro } from '../components/layout/PageIntro'
-import { Button, Card } from '../components/layout/ui'
-import { useAsyncData } from '../hooks/useAsyncData'
-import { useI18n } from '../i18n/I18nProvider'
-import { api } from '../lib/api'
-import { mapEspaco, mapPredio } from '../lib/adapters'
-import { useAuth } from '../lib/authContext'
-import { combineDateAndTime } from '../lib/format'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, PlusSquare } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { PageHeader } from '@/components/common/PageHeader'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { toast } from '@/components/ui/sonner'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapEspaco, mapPredio } from '@/lib/adapters'
+import { useAuth } from '@/lib/authContext'
+import { combineDateAndTime } from '@/lib/format'
 
 export function NewBookingPage() {
   const { t } = useI18n()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({
     predioId: '',
@@ -23,7 +40,7 @@ export function NewBookingPage() {
     motivo: '',
   })
   const [submitting, setSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const loadBookingData = useCallback(async () => {
     const [predios, espacos] = await Promise.all([api.listPredios(), api.listEspacos()])
@@ -54,23 +71,26 @@ export function NewBookingPage() {
   )
 
   const summary = {
-    space: selectedSpace?.name ?? '--',
-    building: selectedSpace?.building ?? '--',
-    capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '--',
-    dateTime: form.data && form.inicio && form.fim ? `${form.data} ${form.inicio} - ${form.fim}` : '--',
-    requester: user.email,
+    space: selectedSpace?.name ?? '—',
+    building: selectedSpace?.building ?? '—',
+    capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '—',
+    dateTime: form.data && form.inicio && form.fim ? `${form.data} • ${form.inicio} – ${form.fim}` : '—',
+    requester: user?.email ?? '—',
   }
 
-  const selectedBuildingId =
-    form.predioId ||
-    selectedSpace?.buildingId?.toString() ||
-    ''
+  const selectedBuildingId = form.predioId || selectedSpace?.buildingId?.toString() || ''
 
-  async function handleSubmit(event) {
+  const formIncomplete =
+    !form.espacoId || !form.data || !form.inicio || !form.fim || !form.motivo
+
+  function openConfirm(event) {
     event.preventDefault()
-    setSubmitting(true)
-    setSubmitMessage('')
+    if (formIncomplete) return
+    setConfirmOpen(true)
+  }
 
+  async function handleConfirm() {
+    setSubmitting(true)
     try {
       await api.createReserva({
         solicitanteId: user.id,
@@ -80,199 +100,200 @@ export function NewBookingPage() {
         motivo: form.motivo,
       })
 
-      setSubmitMessage(t('bookingForm.success'))
+      toast.success(t('bookingForm.success'))
+      setConfirmOpen(false)
+      navigate('/reservas')
     } catch (caughtError) {
-      setSubmitMessage(t('bookingForm.error', { message: caughtError.message }))
+      toast.error(t('bookingForm.error', { message: caughtError.message }))
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <>
-      <PageIntro
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="mb-4">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+          {t('bookings.back')}
+        </Button>
+      </div>
+
+      <PageHeader
         title={t('bookingForm.title')}
         description={t('bookingForm.description')}
+        icon={PlusSquare}
       />
 
-      {loading ? <LoadingBlock label={t('async.bookingLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.bookingError')} /> : null}
+      {loading && <LoadingBlock label={t('async.bookingLoad')} />}
+      {error && <ErrorBlock message={t('async.bookingError')} />}
 
-      {!loading && !error && data ? (
-        <form className="grid gap-6 xl:grid-cols-12" onSubmit={handleSubmit}>
-          <div className="space-y-6 xl:col-span-8">
-            <FormSection
-              title={t('bookingForm.requesterTitle')}
-              description={t('bookingForm.requesterDescription')}
-            >
-              <div className="rounded-2xl border border-stroke bg-panel px-4 py-3">
-                <p className="text-sm font-semibold text-ink">{user.email}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                  {user.papel === 'ADMIN' ? 'Admin' : user.tipoSolicitante === 'ALUNO' ? 'Aluno' : 'Funcionario'}
+      {!loading && !error && data && (
+        <form className="space-y-6" onSubmit={openConfirm}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('bookingForm.requesterTitle')}</CardTitle>
+              <CardDescription>{t('bookingForm.requesterDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border bg-muted/40 px-4 py-3">
+                <p className="text-sm font-semibold">{user?.email}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  {user?.papel === 'ADMIN'
+                    ? 'Admin'
+                    : user?.tipoSolicitante === 'ALUNO'
+                      ? 'Aluno'
+                      : 'Funcionário'}
                 </p>
               </div>
-            </FormSection>
+            </CardContent>
+          </Card>
 
-            <FormSection
-              title={t('bookingForm.spaceTitle')}
-              description={t('bookingForm.spaceDescription')}
-            >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('bookingForm.spaceTitle')}</CardTitle>
+              <CardDescription>{t('bookingForm.spaceDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField
-                  label={t('bookingForm.building')}
-                  value={selectedBuildingId}
-                  onChange={(value) => setForm((current) => ({ ...current, predioId: value, espacoId: '' }))}
-                  options={[
-                    { value: '', label: t('bookingForm.chooseBuilding') },
-                    ...data.buildings.map((building) => ({ value: String(building.id), label: building.name })),
-                  ]}
-                />
-                <SelectField
-                  label={t('bookingForm.room')}
-                  value={form.espacoId}
-                  onChange={(value) => setForm((current) => ({ ...current, espacoId: value }))}
-                  options={[
-                    { value: '', label: t('bookingForm.chooseRoom') },
-                    ...filteredSpaces.map((space) => ({ value: String(space.id), label: space.name })),
-                  ]}
-                />
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-building">{t('bookingForm.building')}</Label>
+                  <select
+                    id="booking-building"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={selectedBuildingId}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, predioId: event.target.value, espacoId: '' }))
+                    }
+                  >
+                    <option value="">{t('bookingForm.chooseBuilding')}</option>
+                    {data.buildings.map((building) => (
+                      <option key={building.id} value={String(building.id)}>
+                        {building.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-space">{t('bookingForm.room')}</Label>
+                  <select
+                    id="booking-space"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={form.espacoId}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, espacoId: event.target.value }))
+                    }
+                  >
+                    <option value="">{t('bookingForm.chooseRoom')}</option>
+                    {filteredSpaces.map((space) => (
+                      <option key={space.id} value={String(space.id)}>
+                        {space.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </FormSection>
+            </CardContent>
+          </Card>
 
-            <FormSection
-              title={t('bookingForm.dateTimeTitle')}
-              description={t('bookingForm.dateTimeDescription')}
-            >
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('bookingForm.dateTimeTitle')}</CardTitle>
+              <CardDescription>{t('bookingForm.dateTimeDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                <Field
-                  label={t('bookingForm.reservationDate')}
-                  type="date"
-                  value={form.data}
-                  onChange={(value) => setForm((current) => ({ ...current, data: value }))}
-                />
-                <Field
-                  label={t('bookingForm.startTime')}
-                  type="time"
-                  value={form.inicio}
-                  onChange={(value) => setForm((current) => ({ ...current, inicio: value }))}
-                />
-                <Field
-                  label={t('bookingForm.endTime')}
-                  type="time"
-                  value={form.fim}
-                  onChange={(value) => setForm((current) => ({ ...current, fim: value }))}
-                />
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-date">{t('bookingForm.reservationDate')}</Label>
+                  <Input
+                    id="booking-date"
+                    type="date"
+                    value={form.data}
+                    onChange={(event) => setForm((current) => ({ ...current, data: event.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-start">{t('bookingForm.startTime')}</Label>
+                  <Input
+                    id="booking-start"
+                    type="time"
+                    value={form.inicio}
+                    onChange={(event) => setForm((current) => ({ ...current, inicio: event.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-end">{t('bookingForm.endTime')}</Label>
+                  <Input
+                    id="booking-end"
+                    type="time"
+                    value={form.fim}
+                    onChange={(event) => setForm((current) => ({ ...current, fim: event.target.value }))}
+                  />
+                </div>
               </div>
-            </FormSection>
+            </CardContent>
+          </Card>
 
-            <FormSection
-              title={t('bookingForm.reasonTitle')}
-              description={t('bookingForm.reasonDescription')}
-            >
-              <label>
-                <span className="mb-2 block text-sm font-bold text-ink">{t('bookingForm.academicReason')}</span>
-                <textarea
-                  className="min-h-36 w-full rounded-2xl border border-stroke bg-panel px-4 py-3 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('bookingForm.reasonTitle')}</CardTitle>
+              <CardDescription>{t('bookingForm.reasonDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="booking-reason">{t('bookingForm.academicReason')}</Label>
+                <Textarea
+                  id="booking-reason"
+                  rows={5}
                   placeholder={t('bookingForm.reasonPlaceholder')}
                   value={form.motivo}
                   onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
                 />
-              </label>
-            </FormSection>
-          </div>
-
-          <div className="xl:col-span-4">
-            <div className="sticky top-28 space-y-4">
-              <Card>
-                <h2 className="border-b border-stroke pb-4 text-2xl font-bold text-ink">{t('bookingForm.summary')}</h2>
-                <dl className="space-y-5 pt-5">
-                  <SummaryRow label={t('bookingForm.selectedSpace')} value={summary.space} />
-                  <SummaryRow label={t('bookingForm.selectedBuilding')} value={summary.building} />
-                  <SummaryRow label={t('bookingForm.estimatedCapacity')} value={summary.capacity} />
-                  <SummaryRow label={t('bookingForm.selectedDateTime')} value={summary.dateTime} />
-                  <SummaryRow label={t('bookingForm.requester')} value={summary.requester} />
-                </dl>
-              </Card>
-
-              <div className="flex flex-col gap-3">
-                <Button
-                  className="w-full"
-                  disabled={
-                    submitting ||
-                    !form.espacoId ||
-                    !form.data ||
-                    !form.inicio ||
-                    !form.fim ||
-                    !form.motivo
-                  }
-                >
-                  {submitting ? t('bookingForm.submitting') : t('bookingForm.submit')}
-                </Button>
-                <Button tone="secondary" className="w-full" type="button">
-                  {t('bookingForm.cancel')}
-                </Button>
-                {submitMessage ? <p className="text-sm text-ink-muted">{submitMessage}</p> : null}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={formIncomplete}>
+              {t('bookingForm.submit')}
+            </Button>
           </div>
         </form>
-      ) : null}
-    </>
-  )
-}
+      )}
 
-function FormSection({ title, description, children }) {
-  return (
-    <Card>
-      <div className="mb-5">
-        <h2 className="text-2xl font-bold text-ink">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-ink-muted">{description}</p>
-      </div>
-      {children}
-    </Card>
-  )
-}
-
-function Field({ label, placeholder = '', type = 'text', value = '', onChange, onBlur }) {
-  return (
-    <label>
-      <span className="mb-2 block text-sm font-bold text-ink">{label}</span>
-      <input
-        className="h-13 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-        placeholder={placeholder}
-        type={type}
-        value={value}
-        onChange={(event) => onChange?.(event.target.value)}
-        onBlur={onBlur}
-      />
-    </label>
-  )
-}
-
-function SelectField({ label, options, value = '', onChange }) {
-  return (
-    <label>
-      <span className="mb-2 block text-sm font-bold text-ink">{label}</span>
-      <select
-        className="h-13 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-        value={value}
-        onChange={(event) => onChange?.(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option.value ?? option} value={option.value ?? option}>
-            {option.label ?? option}
-          </option>
-        ))}
-      </select>
-    </label>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('bookingForm.summary')}</DialogTitle>
+            <DialogDescription>{t('bookingForm.description')}</DialogDescription>
+          </DialogHeader>
+          <Separator />
+          <dl className="space-y-3 text-sm">
+            <SummaryRow label={t('bookingForm.selectedSpace')} value={summary.space} />
+            <SummaryRow label={t('bookingForm.selectedBuilding')} value={summary.building} />
+            <SummaryRow label={t('bookingForm.estimatedCapacity')} value={summary.capacity} />
+            <SummaryRow label={t('bookingForm.selectedDateTime')} value={summary.dateTime} />
+            <SummaryRow label={t('bookingForm.requester')} value={summary.requester} />
+          </dl>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
+              {t('bookingForm.cancel')}
+            </Button>
+            <Button type="button" onClick={handleConfirm} disabled={submitting}>
+              {submitting ? t('bookingForm.submitting') : t('bookingForm.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 
 function SummaryRow({ label, value }) {
   return (
-    <div className="border-b border-stroke pb-4 last:border-b-0 last:pb-0">
-      <dt className="text-sm text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-base font-semibold text-ink">{value}</dd>
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium">{value}</dd>
     </div>
   )
 }

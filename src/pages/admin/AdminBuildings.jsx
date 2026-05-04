@@ -1,15 +1,28 @@
 import { useCallback } from 'react'
-import { NavLink } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
-import { PageIntro } from '../../components/layout/PageIntro'
-import { Button, Card } from '../../components/layout/ui'
-import { useAsyncData } from '../../hooks/useAsyncData'
-import { useI18n } from '../../i18n/I18nProvider'
-import { api } from '../../lib/api'
-import { mapEspaco, mapPredio } from '../../lib/adapters'
+import { Layers, MapPin, PlusSquare } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { PageHeader } from '@/components/common/PageHeader'
+import { AdminTabs } from '@/components/common/AdminTabs'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapEspaco, mapPredio } from '@/lib/adapters'
+import { cn } from '@/lib/utils'
+
+const HEADER_GRADIENTS = [
+  'bg-gradient-to-br from-primary/20 via-primary-soft to-card',
+  'bg-gradient-to-br from-secondary via-muted to-card',
+  'bg-gradient-to-br from-success/20 via-card to-primary-soft',
+]
 
 export function AdminBuildingsPage() {
   const { t } = useI18n()
+
   const loadBuildings = useCallback(async () => {
     const [predios, espacos] = await Promise.all([api.listPredios(), api.listEspacos()])
     const mappedBuildings = predios.map(mapPredio)
@@ -22,7 +35,9 @@ export function AdminBuildingsPage() {
       return {
         ...building,
         roomsCount: rooms.length,
-        occupancy: rooms.length ? `${Math.round(((rooms.length - availableCount) / rooms.length) * 100)}%` : '0%',
+        occupancy: rooms.length
+          ? `${Math.round(((rooms.length - availableCount) / rooms.length) * 100)}%`
+          : '0%',
         statusKey:
           availableCount === rooms.length
             ? 'common.statuses.operating'
@@ -36,100 +51,74 @@ export function AdminBuildingsPage() {
   const { data, loading, error } = useAsyncData(loadBuildings)
 
   return (
-    <>
-      <PageIntro
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
         eyebrow={t('admin.buildings.eyebrow')}
         title={t('admin.buildings.title')}
         description={t('admin.buildings.description')}
-        actions={<Button>{t('admin.buildings.newBuilding')}</Button>}
+        icon={Layers}
+        actions={
+          <Button>
+            <PlusSquare className="h-4 w-4" />
+            {t('admin.buildings.newBuilding')}
+          </Button>
+        }
       />
-      <AdminTabs />
+      <AdminTabs pair="spaces" />
 
-      {loading ? <LoadingBlock label={t('async.buildingsLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.buildingsError')} /> : null}
+      {loading && <LoadingBlock label={t('async.buildingsLoad')} />}
+      {error && <ErrorBlock message={t('async.buildingsError')} />}
 
-      {!loading && !error && data ? (
-        <section className="grid gap-6 xl:grid-cols-3">
+      {!loading && !error && data && (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((building, index) => (
             <Card key={building.id} className="overflow-hidden p-0">
-              <div
-                className={[
-                  'h-32',
-                  index % 3 === 0
-                    ? 'bg-gradient-to-br from-brand-red/20 via-brand-blush to-panel'
-                    : index % 3 === 1
-                      ? 'bg-gradient-to-br from-navy/20 via-sky-soft to-panel'
-                      : 'bg-gradient-to-br from-mint/20 via-panel to-brand-blush',
-                ].join(' ')}
-              />
-              <div className="p-6">
-                <div className="flex items-start justify-between">
-                  <h2 className="text-2xl font-bold text-ink">{building.name}</h2>
-                  <button className="text-ink-muted" type="button">
-                    ...
-                  </button>
+              <div className={cn('h-28 w-full', HEADER_GRADIENTS[index % HEADER_GRADIENTS.length])} />
+              <div className="space-y-3 p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-semibold">{building.name}</h3>
+                    <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {building.location}
+                    </p>
+                  </div>
+                  <StatusBadge statusKey={building.statusKey} />
                 </div>
-                <dl className="mt-5 space-y-3 text-sm text-ink-muted">
-                  <div className="flex justify-between gap-4">
-                    <dt>{t('admin.buildings.code')}</dt>
-                    <dd className="font-semibold text-ink">{building.code}</dd>
+                <Separator />
+                <dl className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('admin.buildings.code')}
+                    </dt>
+                    <dd className="mt-0.5 font-semibold">{building.code}</dd>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>{t('admin.buildings.location')}</dt>
-                    <dd className="font-semibold text-ink">{building.location}</dd>
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('admin.buildings.rooms')}
+                    </dt>
+                    <dd className="mt-0.5 font-semibold">{building.roomsCount}</dd>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>{t('admin.buildings.rooms')}</dt>
-                    <dd className="font-semibold text-ink">{building.roomsCount}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>{t('admin.buildings.occupancy')}</dt>
-                    <dd className="font-semibold text-ink">{building.occupancy}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>{t('admin.buildings.status')}</dt>
-                    <dd className="font-semibold text-ink">{t(building.statusKey)}</dd>
+                  <div>
+                    <dt className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('admin.buildings.occupancy')}
+                    </dt>
+                    <dd className="mt-0.5 font-semibold">{building.occupancy}</dd>
                   </div>
                 </dl>
-                <div className="mt-6 flex gap-3 border-t border-stroke pt-4">
-                  <Button tone="secondary" className="flex-1">
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" className="flex-1">
                     {t('admin.buildings.viewDetails')}
                   </Button>
-                  <Button tone="ghost">{t('common.edit')}</Button>
+                  <Button variant="ghost" size="sm">
+                    {t('common.edit')}
+                  </Button>
                 </div>
               </div>
             </Card>
           ))}
         </section>
-      ) : null}
-    </>
-  )
-}
-
-function AdminTabs() {
-  const { t } = useI18n()
-  const links = [
-    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
-    { to: '/admin/predios', label: t('admin.tabs.buildings') },
-    { to: '/admin/usuarios', label: t('admin.tabs.users') },
-    { to: '/configuracoes/api', label: t('admin.tabs.api') },
-  ]
-
-  return (
-    <div className="mb-8 flex flex-wrap gap-3">
-      {links.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          className={({ isActive }) =>
-            `rounded-full px-4 py-2 text-sm font-semibold transition ${
-              isActive ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted hover:text-ink'
-            }`
-          }
-        >
-          {link.label}
-        </NavLink>
-      ))}
+      )}
     </div>
   )
 }

@@ -1,18 +1,35 @@
 import { useCallback, useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
-import { PageIntro } from '../../components/layout/PageIntro'
-import { Badge, Button, Card } from '../../components/layout/ui'
-import { useAsyncData } from '../../hooks/useAsyncData'
-import { useI18n } from '../../i18n/I18nProvider'
-import { api } from '../../lib/api'
-import { mapEspaco, mapPredio } from '../../lib/adapters'
+import { Building2, ChevronDown, Edit, PlusSquare, ToggleLeft } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { PageHeader } from '@/components/common/PageHeader'
+import { AdminTabs } from '@/components/common/AdminTabs'
+import { EmptyState } from '@/components/common/EmptyState'
+import { StatusBadge } from '@/components/common/StatusBadge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapEspaco, mapPredio } from '@/lib/adapters'
+import { toast } from '@/components/ui/sonner'
 
 export function AdminSpacesPage() {
-  const { t, tm } = useI18n()
+  const { t } = useI18n()
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [pendingId, setPendingId] = useState(null)
+
   const loadAdminSpaces = useCallback(async () => {
     const [espacos, predios] = await Promise.all([api.listEspacos(), api.listPredios()])
     return {
@@ -25,7 +42,6 @@ export function AdminSpacesPage() {
 
   const filteredSpaces = useMemo(() => {
     if (!data) return []
-
     return data.spaces.filter((space) => {
       const matchesBuilding = !selectedBuildingId || String(space.buildingId) === selectedBuildingId
       const matchesAvailability = !onlyAvailable || space.statusKey === 'common.statuses.available'
@@ -35,131 +51,133 @@ export function AdminSpacesPage() {
 
   async function handleToggleAvailability(space) {
     setPendingId(space.id)
-
     try {
+      const wasAvailable = space.statusKey === 'common.statuses.available'
       const updated = await api.updateEspacoIndisponibilidade(space.id, {
-        indisponivel: space.statusKey === 'common.statuses.available',
-        motivo: space.statusKey === 'common.statuses.available' ? t('admin.spaces.adminReason') : null,
+        indisponivel: wasAvailable,
+        motivo: wasAvailable ? t('admin.spaces.adminReason') : null,
       })
-
       const mapped = mapEspaco(updated)
       setData((current) => ({
         ...current,
         spaces: current.spaces.map((item) => (item.id === mapped.id ? mapped : item)),
       }))
+      toast.success(wasAvailable ? t('common.statuses.unavailable') : t('common.statuses.available'))
+    } catch (caughtError) {
+      toast.error(caughtError.message)
     } finally {
       setPendingId(null)
     }
   }
 
   return (
-    <>
-      <PageIntro
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
         title={t('admin.spaces.title')}
         description={t('admin.spaces.description')}
-        actions={<Button>{t('admin.spaces.newSpace')}</Button>}
+        icon={Building2}
+        actions={
+          <Button>
+            <PlusSquare className="h-4 w-4" />
+            {t('admin.spaces.newSpace')}
+          </Button>
+        }
       />
-      <AdminTabs />
+      <AdminTabs pair="spaces" />
 
-      {loading ? <LoadingBlock label={t('async.adminSpacesLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.adminSpacesError')} /> : null}
+      {loading && <LoadingBlock label={t('async.adminSpacesLoad')} />}
+      {error && <ErrorBlock message={t('async.adminSpacesError')} />}
 
-      {!loading && !error && data ? (
-        <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
-          <Card className="h-fit">
-            <h2 className="text-xl font-bold text-ink">{t('admin.spaces.filters')}</h2>
-            <div className="mt-6 space-y-6">
-              <label>
-                <span className="mb-2 block text-sm font-bold text-ink">{t('admin.spaces.building')}</span>
+      {!loading && !error && data && (
+        <>
+          <Card className="mb-6 p-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+                <Label htmlFor="admin-building-filter">{t('admin.spaces.building')}</Label>
                 <select
-                  className="h-12 w-full rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
+                  id="admin-building-filter"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={selectedBuildingId}
                   onChange={(event) => setSelectedBuildingId(event.target.value)}
                 >
                   <option value="">{t('admin.spaces.allBuildings')}</option>
                   {data.buildings.map((building) => (
-                    <option key={building.id} value={building.id}>
+                    <option key={building.id} value={String(building.id)}>
                       {building.name}
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
 
-              <label className="flex items-center gap-3 text-sm text-ink-muted">
-                <input checked={onlyAvailable} type="checkbox" onChange={(event) => setOnlyAvailable(event.target.checked)} />
-                {t('admin.spaces.availableOnly')}
-              </label>
+              <div className="flex h-10 items-center gap-3">
+                <Switch
+                  id="admin-only-available"
+                  checked={onlyAvailable}
+                  onCheckedChange={setOnlyAvailable}
+                />
+                <Label htmlFor="admin-only-available" className="cursor-pointer text-sm">
+                  {t('admin.spaces.availableOnly')}
+                </Label>
+              </div>
             </div>
           </Card>
 
-          <Card className="overflow-hidden p-0">
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead className="bg-panel">
-                  <tr>
-                    {tm('admin.spaces.headers').map((head) => (
-                      <th key={head} className="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">
-                        {head}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSpaces.map((space) => (
-                    <tr key={space.id} className="border-t border-stroke hover:bg-brand-paper">
-                      <td className="px-6 py-5 text-sm font-semibold text-ink">{space.name}</td>
-                      <td className="px-6 py-5 text-sm text-ink-muted">{t(space.typeKey)}</td>
-                      <td className="px-6 py-5 text-sm text-ink">{space.capacity}</td>
-                      <td className="px-6 py-5 text-sm text-ink-muted">{space.building}</td>
-                      <td className="px-6 py-5">
-                        <Badge tone={space.statusTone}>{t(space.statusKey)}</Badge>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex justify-end gap-3 text-sm font-semibold">
-                          <button className="text-navy" type="button">
-                            {t('common.edit')}
-                          </button>
-                          <button className="text-brand-red" disabled={pendingId === space.id} onClick={() => handleToggleAvailability(space)} type="button">
-                            {pendingId === space.id ? t('admin.spaces.saving') : t('admin.spaces.toggle')}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {filteredSpaces.length === 0 ? (
+            <EmptyState title="Nenhum espaço" description="Ajuste os filtros." />
+          ) : (
+            <div className="space-y-3">
+              {filteredSpaces.map((space) => {
+                const isAvailable = space.statusKey === 'common.statuses.available'
+                return (
+                  <Card
+                    key={space.id}
+                    className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold">{space.name}</h3>
+                        <StatusBadge statusKey={space.statusKey} />
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t(space.typeKey)} · {space.building} ·{' '}
+                        {t('common.patterns.peopleCount', { count: space.capacity })}
+                      </p>
+                      {space.maintenanceReason && (
+                        <p className="mt-1 text-xs text-destructive">{space.maintenanceReason}</p>
+                      )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={pendingId === space.id}>
+                          {pendingId === space.id ? t('admin.spaces.saving') : 'Status'}
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Edit className="h-4 w-4" />
+                          {t('common.edit')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className={isAvailable ? 'text-destructive focus:text-destructive' : ''}
+                          onClick={() => handleToggleAvailability(space)}
+                        >
+                          <ToggleLeft className="h-4 w-4" />
+                          {isAvailable
+                            ? t('common.statuses.unavailable')
+                            : t('common.statuses.available')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </Card>
+                )
+              })}
             </div>
-          </Card>
-        </div>
-      ) : null}
-    </>
-  )
-}
-
-function AdminTabs() {
-  const { t } = useI18n()
-  const links = [
-    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
-    { to: '/admin/predios', label: t('admin.tabs.buildings') },
-    { to: '/admin/usuarios', label: t('admin.tabs.users') },
-    { to: '/configuracoes/api', label: t('admin.tabs.api') },
-  ]
-
-  return (
-    <div className="mb-8 flex flex-wrap gap-3">
-      {links.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          className={({ isActive }) =>
-            `rounded-full px-4 py-2 text-sm font-semibold transition ${
-              isActive ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted hover:text-ink'
-            }`
-          }
-        >
-          {link.label}
-        </NavLink>
-      ))}
+          )}
+        </>
+      )}
     </div>
   )
 }
