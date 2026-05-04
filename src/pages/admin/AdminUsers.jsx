@@ -1,20 +1,33 @@
 import { useCallback, useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../../components/layout/AsyncState'
-import { PageIntro } from '../../components/layout/PageIntro'
-import { Badge, Button, Card } from '../../components/layout/ui'
-import { useAsyncData } from '../../hooks/useAsyncData'
-import { useI18n } from '../../i18n/I18nProvider'
-import { api } from '../../lib/api'
-import { mapReserva, mapUsuario } from '../../lib/adapters'
+import { Search, Users as UsersIcon, UserPlus } from 'lucide-react'
+
+import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
+import { PageHeader } from '@/components/common/PageHeader'
+import { AdminTabs } from '@/components/common/AdminTabs'
+import { EmptyState } from '@/components/common/EmptyState'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { useAsyncData } from '@/hooks/useAsyncData'
+import { useI18n } from '@/i18n/I18nProvider'
+import { api } from '@/lib/api'
+import { mapReserva, mapUsuario } from '@/lib/adapters'
 
 export function AdminUsersPage() {
-  const { t, tm } = useI18n()
+  const { t } = useI18n()
   const [emailTerm, setEmailTerm] = useState('')
+
   const loadUsers = useCallback(async () => {
-    const [usuarios, solicitantes, reservas] = await Promise.all([api.listUsuarios(), api.listSolicitantes(), api.listReservas()])
+    const [usuarios, solicitantes, reservas] = await Promise.all([
+      api.listUsuarios(),
+      api.listSolicitantes(),
+      api.listReservas(),
+    ])
 
     const mappedReservas = reservas.map(mapReserva)
+
     const mappedUsuarios = usuarios.map(mapUsuario).map((user) => ({
       id: `usuario-${user.id}`,
       name: user.name,
@@ -22,7 +35,7 @@ export function AdminUsersPage() {
       roleKey: 'common.statuses.user',
       requests: 0,
       statusKey: 'common.statuses.active',
-      badgeTone: 'neutral',
+      isRequester: false,
     }))
 
     const mappedSolicitantes = solicitantes.map((solicitante) => ({
@@ -32,7 +45,7 @@ export function AdminUsersPage() {
       roleKey: 'common.statuses.requester',
       requests: mappedReservas.filter((reservation) => reservation.solicitanteId === solicitante.id).length,
       statusKey: 'common.statuses.requester',
-      badgeTone: 'info',
+      isRequester: true,
     }))
 
     return [...mappedUsuarios, ...mappedSolicitantes]
@@ -47,93 +60,71 @@ export function AdminUsersPage() {
   }, [data, emailTerm])
 
   return (
-    <>
-      <PageIntro
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader
         title={t('admin.users.title')}
         description={t('admin.users.description')}
-        actions={<Button>{t('admin.users.newRequester')}</Button>}
+        icon={UsersIcon}
+        actions={
+          <Button>
+            <UserPlus className="h-4 w-4" />
+            {t('admin.users.newRequester')}
+          </Button>
+        }
       />
       <AdminTabs />
 
-      {loading ? <LoadingBlock label={t('async.usersLoad')} /> : null}
-      {error ? <ErrorBlock message={t('async.usersError')} /> : null}
+      {loading && <LoadingBlock label={t('async.usersLoad')} />}
+      {error && <ErrorBlock message={t('async.usersError')} />}
 
-      {!loading && !error ? (
+      {!loading && !error && data && (
         <Card className="overflow-hidden p-0">
-          <div className="flex flex-col gap-4 border-b border-stroke px-6 py-5 md:flex-row md:items-center md:justify-between">
-            <input
-              className="h-12 w-full max-w-md rounded-2xl border border-stroke bg-panel px-4 text-sm outline-none transition focus:border-brand-red focus:ring-4 focus:ring-brand-red/10"
-              placeholder={t('admin.users.searchByEmail')}
-              value={emailTerm}
-              onChange={(event) => setEmailTerm(event.target.value)}
-            />
-            <Button tone="secondary">{t('admin.users.filters')}</Button>
+          <div className="border-b p-4">
+            <div className="relative max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder={t('admin.users.searchByEmail')}
+                value={emailTerm}
+                onChange={(event) => setEmailTerm(event.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead className="bg-panel">
-                <tr>
-                  {tm('admin.users.headers').map((head) => (
-                    <th key={head} className="px-6 py-4 text-left text-xs font-extrabold uppercase tracking-[0.18em] text-ink-muted">
-                      {head}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-t border-stroke hover:bg-brand-paper">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-soft text-sm font-bold text-navy">
-                          {user.name[0]}
-                        </div>
-                        <span className="text-sm font-semibold text-ink">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-ink-muted">{user.email}</td>
-                    <td className="px-6 py-4 text-sm text-ink">{t(user.roleKey)}</td>
-                    <td className="px-6 py-4 text-sm text-ink">{user.requests}</td>
-                    <td className="px-6 py-4">
-                      <Badge tone={user.badgeTone}>{t(user.statusKey)}</Badge>
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-semibold text-navy">{t('admin.users.manage')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {filteredUsers.length === 0 ? (
+            <div className="p-6">
+              <EmptyState title="Nenhum usuário" description="Tente ajustar a busca." />
+            </div>
+          ) : (
+            <ul className="divide-y">
+              {filteredUsers.map((user) => (
+                <li key={user.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarFallback className="bg-primary-soft text-sm font-semibold text-primary">
+                        {(user.name?.[0] ?? '?').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{user.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <Badge variant={user.isRequester ? 'default' : 'secondary'}>{t(user.roleKey)}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {user.requests} {user.requests === 1 ? 'solicitação' : 'solicitações'}
+                    </span>
+                    <Button variant="ghost" size="sm">
+                      {t('admin.users.manage')}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
-      ) : null}
-    </>
-  )
-}
-
-function AdminTabs() {
-  const { t } = useI18n()
-  const links = [
-    { to: '/admin/espacos', label: t('admin.tabs.spaces') },
-    { to: '/admin/predios', label: t('admin.tabs.buildings') },
-    { to: '/admin/usuarios', label: t('admin.tabs.users') },
-    { to: '/configuracoes/api', label: t('admin.tabs.api') },
-  ]
-
-  return (
-    <div className="mb-8 flex flex-wrap gap-3">
-      {links.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          className={({ isActive }) =>
-            `rounded-full px-4 py-2 text-sm font-semibold transition ${
-              isActive ? 'bg-brand-red text-white' : 'border border-stroke bg-white text-ink-muted hover:text-ink'
-            }`
-          }
-        >
-          {link.label}
-        </NavLink>
-      ))}
+      )}
     </div>
   )
 }
