@@ -32,7 +32,7 @@ export function LoginPage() {
       const payload = { email: form.email, senha: form.senha }
 
       if (mode === 'register') {
-        await register(payload)
+        await register({ ...payload, papel: 'USER' })
       } else {
         await login(payload)
       }

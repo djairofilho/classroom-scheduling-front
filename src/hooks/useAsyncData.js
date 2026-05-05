@@ -5,6 +5,22 @@ export function useAsyncData(loader) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  async function reload() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await loader()
+      setData(result)
+      return result
+    } catch (caughtError) {
+      setError(caughtError)
+      throw caughtError
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let active = true
 
@@ -35,5 +51,5 @@ export function useAsyncData(loader) {
     }
   }, [loader])
 
-  return { data, loading, error, setData }
+  return { data, loading, error, setData, reload }
 }
