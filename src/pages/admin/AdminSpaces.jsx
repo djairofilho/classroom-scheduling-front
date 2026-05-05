@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Building2, ChevronDown, Edit, PlusSquare, ToggleLeft } from 'lucide-react'
+import { Building2, ChevronDown, Edit, PlusSquare, ToggleLeft, Trash2 } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -8,8 +8,10 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +31,11 @@ export function AdminSpacesPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [pendingId, setPendingId] = useState(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [savingForm, setSavingForm] = useState(false)
+  const [form, setForm] = useState({ nome: '', capacidade: '', tipo: 'SALA', predioId: '' })
+  const [editingId, setEditingId] = useState(null)
 
   const loadAdminSpaces = useCallback(async () => {
     const [espacos, predios] = await Promise.all([api.listEspacos(), api.listPredios()])
@@ -70,6 +77,91 @@ export function AdminSpacesPage() {
     }
   }
 
+  function resetForm() {
+    setForm({ nome: '', capacidade: '', tipo: 'SALA', predioId: '' })
+  }
+
+  function openCreateModal() {
+    resetForm()
+    setCreateOpen(true)
+  }
+
+  function openEditModal(space) {
+    setEditingId(space.id)
+    setForm({
+      nome: space.name,
+      capacidade: String(space.capacity),
+      tipo: inferApiType(space.typeKey),
+      predioId: space.buildingId ? String(space.buildingId) : '',
+    })
+    setEditOpen(true)
+  }
+
+  async function handleCreateSpace() {
+    if (!form.nome || !form.capacidade || !form.predioId) return
+    setSavingForm(true)
+    try {
+      const created = await api.createEspaco({
+        nome: form.nome,
+        capacidade: Number(form.capacidade),
+        tipo: form.tipo,
+        predioId: Number(form.predioId),
+      })
+      const mapped = mapEspaco(created)
+      setData((current) => ({ ...current, spaces: [mapped, ...current.spaces] }))
+      setCreateOpen(false)
+      resetForm()
+      toast.success('Espaço criado com sucesso.')
+    } catch (caughtError) {
+      toast.error(caughtError.message)
+    } finally {
+      setSavingForm(false)
+    }
+  }
+
+  async function handleEditSpace() {
+    if (!editingId || !form.nome || !form.capacidade || !form.predioId) return
+    setSavingForm(true)
+    try {
+      const updated = await api.updateEspaco(editingId, {
+        nome: form.nome,
+        capacidade: Number(form.capacidade),
+        tipo: form.tipo,
+        predioId: Number(form.predioId),
+      })
+      const mapped = mapEspaco(updated)
+      setData((current) => ({
+        ...current,
+        spaces: current.spaces.map((item) => (item.id === mapped.id ? mapped : item)),
+      }))
+      setEditOpen(false)
+      toast.success('Espaço atualizado com sucesso.')
+    } catch (caughtError) {
+      toast.error(caughtError.message)
+    } finally {
+      setSavingForm(false)
+    }
+  }
+
+  async function handleDeleteSpace(space) {
+    const confirmed = window.confirm(`Deseja remover o espaço "${space.name}"?`)
+    if (!confirmed) return
+
+    setPendingId(space.id)
+    try {
+      await api.removeEspaco(space.id)
+      setData((current) => ({
+        ...current,
+        spaces: current.spaces.filter((item) => item.id !== space.id),
+      }))
+      toast.success('Espaço removido com sucesso.')
+    } catch (caughtError) {
+      toast.error(caughtError.message)
+    } finally {
+      setPendingId(null)
+    }
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl">
       <PageHeader
@@ -77,7 +169,7 @@ export function AdminSpacesPage() {
         description={t('admin.spaces.description')}
         icon={Building2}
         actions={
-          <Button>
+          <Button onClick={openCreateModal}>
             <PlusSquare className="h-4 w-4" />
             {t('admin.spaces.newSpace')}
           </Button>
@@ -156,7 +248,7 @@ export function AdminSpacesPage() {
                       <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel>Status</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditModal(space)}>
                           <Edit className="h-4 w-4" />
                           {t('common.edit')}
                         </DropdownMenuItem>
@@ -169,6 +261,13 @@ export function AdminSpacesPage() {
                             ? t('common.statuses.unavailable')
                             : t('common.statuses.available')}
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeleteSpace(space)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Excluir espaço
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </Card>
@@ -178,6 +277,110 @@ export function AdminSpacesPage() {
           )}
         </>
       )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo espaço</DialogTitle>
+          </DialogHeader>
+          <SpaceFormFields
+            buildings={data?.buildings ?? []}
+            form={form}
+            onChange={setForm}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={savingForm}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateSpace} disabled={savingForm}>
+              {savingForm ? 'Salvando...' : 'Criar espaço'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar espaço</DialogTitle>
+          </DialogHeader>
+          <SpaceFormFields
+            buildings={data?.buildings ?? []}
+            form={form}
+            onChange={setForm}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingForm}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditSpace} disabled={savingForm}>
+              {savingForm ? 'Salvando...' : 'Salvar alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
+}
+
+function SpaceFormFields({ buildings, form, onChange }) {
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-2">
+        <Label htmlFor="space-name">Nome</Label>
+        <Input
+          id="space-name"
+          value={form.nome}
+          onChange={(event) => onChange((current) => ({ ...current, nome: event.target.value }))}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="space-capacity">Capacidade</Label>
+        <Input
+          id="space-capacity"
+          type="number"
+          min={1}
+          value={form.capacidade}
+          onChange={(event) => onChange((current) => ({ ...current, capacidade: event.target.value }))}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="space-type">Tipo</Label>
+        <select
+          id="space-type"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.tipo}
+          onChange={(event) => onChange((current) => ({ ...current, tipo: event.target.value }))}
+        >
+          <option value="SALA">Sala</option>
+          <option value="LAB">Laboratório</option>
+          <option value="AUDITORIO">Auditório</option>
+          <option value="REUNIAO">Reunião</option>
+        </select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="space-building">Prédio</Label>
+        <select
+          id="space-building"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={form.predioId}
+          onChange={(event) => onChange((current) => ({ ...current, predioId: event.target.value }))}
+        >
+          <option value="">Selecione</option>
+          {buildings.map((building) => (
+            <option key={building.id} value={String(building.id)}>
+              {building.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}
+
+function inferApiType(typeKey) {
+  if (typeKey === 'common.spaceTypes.lab') return 'LAB'
+  if (typeKey === 'common.spaceTypes.auditorium') return 'AUDITORIO'
+  if (typeKey === 'common.spaceTypes.meeting') return 'REUNIAO'
+  return 'SALA'
 }

@@ -36,7 +36,12 @@ async function apiRequest(path, options = {}) {
     return null
   }
 
-  return response.json()
+  const text = await response.text()
+  if (!text) {
+    return null
+  }
+
+  return JSON.parse(text)
 }
 
 function queryString(params) {
@@ -64,21 +69,31 @@ export const api = {
   listEspacosPorPredio: (predioId) => apiRequest(`/espacos/por-predio${queryString({ predioId })}`),
   getEspaco: (id) => apiRequest(`/espacos/${id}`),
   createEspaco: (payload) => apiRequest('/espacos', { method: 'POST', body: JSON.stringify(payload) }),
+  updateEspaco: (id, payload) => apiRequest(`/espacos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeEspaco: (id) => apiRequest(`/espacos/${id}`, { method: 'DELETE' }),
   updateEspacoIndisponibilidade: (id, payload) =>
     apiRequest(`/espacos/${id}/indisponibilidade`, { method: 'PATCH', body: JSON.stringify(payload) }),
 
   listPredios: () => apiRequest('/predios'),
   getPredio: (id) => apiRequest(`/predios/${id}`),
   createPredio: (payload) => apiRequest('/predios', { method: 'POST', body: JSON.stringify(payload) }),
+  updatePredio: (id, payload) => apiRequest(`/predios/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removePredio: (id) => apiRequest(`/predios/${id}`, { method: 'DELETE' }),
   findPredioByCodigo: (codigo) => apiRequest(`/predios/buscar${queryString({ codigo })}`),
 
   listReservas: () => apiRequest('/reservas'),
   listReservasAtivas: () => apiRequest('/reservas/ativas'),
   listReservasPorSolicitante: (solicitanteId) =>
     apiRequest(`/reservas/por-solicitante${queryString({ solicitanteId })}`),
+  listReservasPorEspacoEData: (espacoId, data) =>
+    apiRequest(`/reservas/por-espaco${queryString({ espacoId, data })}`),
   getReserva: (id) => apiRequest(`/reservas/${id}`),
   createReserva: (payload) => apiRequest('/reservas', { method: 'POST', body: JSON.stringify(payload) }),
+  createReservasEmMassa: (payload) =>
+    apiRequest('/reservas/lote', { method: 'POST', body: JSON.stringify(payload) }),
   cancelarReserva: (id) => apiRequest(`/reservas/${id}/cancelar`, { method: 'PATCH' }),
+  aprovarReserva: (id) => apiRequest(`/reservas/${id}/aprovar`, { method: 'PATCH' }),
+  recusarReserva: (id) => apiRequest(`/reservas/${id}/recusar`, { method: 'PATCH' }),
 
   listNotificacoes: () => apiRequest('/notificacoes'),
   listNotificacoesPorDestinatario: (destinatarioId) =>

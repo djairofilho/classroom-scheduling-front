@@ -9,7 +9,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,10 +24,14 @@ import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
 import { mapReserva, mapUsuario } from '@/lib/adapters'
+import { toast } from '@/components/ui/sonner'
 
 export function AdminUsersPage() {
   const { t } = useI18n()
   const [emailTerm, setEmailTerm] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ nome: '', email: '', tipoSolicitante: 'ALUNO' })
 
   const loadUsers = useCallback(async () => {
     const [usuarios, solicitantes, reservas] = await Promise.all([
@@ -59,13 +65,38 @@ export function AdminUsersPage() {
     return [...mappedUsuarios, ...mappedSolicitantes]
   }, [])
 
-  const { data, loading, error } = useAsyncData(loadUsers)
+  const { data, loading, error, setData } = useAsyncData(loadUsers)
 
   const filteredUsers = useMemo(() => {
     const users = data ?? []
     if (!emailTerm) return users
     return users.filter((user) => user.email.toLowerCase().includes(emailTerm.toLowerCase()))
   }, [data, emailTerm])
+
+  async function handleCreateRequester() {
+    if (!form.nome || !form.email) return
+    setSaving(true)
+    try {
+      const created = await api.createSolicitante(form)
+      const mapped = {
+        id: `solicitante-${created.id}`,
+        name: created.nome,
+        email: created.email,
+        roleKey: 'common.statuses.requester',
+        requests: 0,
+        statusKey: 'common.statuses.requester',
+        isRequester: true,
+      }
+      setData((current) => [mapped, ...current])
+      setCreateOpen(false)
+      setForm({ nome: '', email: '', tipoSolicitante: 'ALUNO' })
+      toast.success('Solicitante criado com sucesso.')
+    } catch (caughtError) {
+      toast.error(caughtError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -74,7 +105,7 @@ export function AdminUsersPage() {
         description={t('admin.users.description')}
         icon={UsersIcon}
         actions={
-          <Button>
+          <Button onClick={() => setCreateOpen(true)}>
             <UserPlus className="h-4 w-4" />
             {t('admin.users.newRequester')}
           </Button>
@@ -150,6 +181,55 @@ export function AdminUsersPage() {
           )}
         </Card>
       )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo solicitante</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="requester-name">Nome</Label>
+              <Input
+                id="requester-name"
+                value={form.nome}
+                onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="requester-email">E-mail</Label>
+              <Input
+                id="requester-email"
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="requester-type">Tipo</Label>
+              <select
+                id="requester-type"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.tipoSolicitante}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, tipoSolicitante: event.target.value }))
+                }
+              >
+                <option value="ALUNO">Aluno</option>
+                <option value="FUNCIONARIO">Funcionário</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateRequester} disabled={saving}>
+              {saving ? 'Salvando...' : 'Criar solicitante'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

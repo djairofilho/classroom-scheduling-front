@@ -14,17 +14,9 @@ import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
 import { mapEspaco, mapReserva } from '@/lib/adapters'
 import { useAuth } from '@/lib/authContext'
-import { cn } from '@/lib/utils'
-
-const SLOT_CLASS = {
-  reservation: 'bg-primary text-primary-foreground',
-  event: 'bg-secondary text-secondary-foreground',
-  maintenance: 'bg-destructive/15 text-destructive',
-  free: 'border bg-card text-muted-foreground',
-}
 
 export function SpaceDetailsPage() {
-  const { t, tm } = useI18n()
+  const { t } = useI18n()
   const { spaceId } = useParams()
   const { user, isAdmin } = useAuth()
 
@@ -84,36 +76,6 @@ export function SpaceDetailsPage() {
             <Building2 className="h-24 w-24 text-primary/30" />
             <div className="absolute right-4 top-4">
               <StatusBadge statusKey={space.statusKey} />
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <h3 className="text-base font-semibold">{t('spaceDetails.weeklySchedule')}</h3>
-            <Separator className="my-3" />
-            <div className="overflow-hidden rounded-lg border">
-              <div className="grid grid-cols-6 bg-muted text-center text-[0.7rem] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {tm('spaceDetails.days').map((day) => (
-                  <div key={day} className="border-r px-2 py-2 last:border-r-0">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              {space.weeklySchedule.map((row, index) => (
-                <div key={index} className="grid grid-cols-6 border-t">
-                  {row.map((slot, slotIndex) => (
-                    <div key={`${index}-${slotIndex}`} className="border-r p-1.5 last:border-r-0">
-                      <div
-                        className={cn(
-                          'flex h-12 items-center justify-center rounded-md text-center text-[0.7rem] font-medium',
-                          SLOT_CLASS[slot] ?? SLOT_CLASS.free,
-                        )}
-                      >
-                        {t(`spaceDetails.schedule.${slot}`)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
             </div>
           </Card>
 
