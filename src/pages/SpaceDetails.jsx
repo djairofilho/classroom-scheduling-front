@@ -65,7 +65,7 @@ export function SpaceDetailsPage() {
           </Link>
         </Button>
       </div>
-      <PageHeader title={space.name} description={space.building} icon={Building2} />
+      <PageHeader title={space.name} description={space.building} />
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">

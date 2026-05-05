@@ -87,6 +87,8 @@ export function AdminBulkSchedulingPage() {
         horaInicio: form.horaInicio,
         horaFim: form.horaFim,
         motivo: form.motivo,
+        statusInicial: 'APROVADA',
+        aprovacaoAutomatica: true,
       })
 
       const createdCount = response?.quantidadeCriada ?? response?.createdCount ?? 0

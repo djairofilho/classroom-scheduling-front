@@ -39,6 +39,9 @@ export function AdminReservationsPage() {
       } else if (nextStatus === 'RECUSADA') {
         await api.recusarReserva(id)
         toast.success('Reserva cancelada.')
+      } else if (nextStatus === 'CANCELADA') {
+        await api.cancelarReserva(id)
+        toast.success('Reserva cancelada.')
       }
       await reload()
     } catch (caughtError) {
@@ -84,14 +87,18 @@ export function AdminReservationsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <StatusBadge statusKey={reservation.statusKey} />
-                      {reservation.status === 'PENDENTE' && (
+                      {(reservation.status === 'PENDENTE' || reservation.status === 'APROVADA') && (
                         <Select onValueChange={(value) => handleStatusChange(reservation.id, value)}>
                           <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Alterar para..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="APROVADA">Aceito</SelectItem>
-                            <SelectItem value="RECUSADA">Cancela</SelectItem>
+                            {reservation.status === 'PENDENTE' && (
+                              <SelectItem value="APROVADA">Aceito</SelectItem>
+                            )}
+                            <SelectItem value={reservation.status === 'PENDENTE' ? 'RECUSADA' : 'CANCELADA'}>
+                              Cancela
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       )}

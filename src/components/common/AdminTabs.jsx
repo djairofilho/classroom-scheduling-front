@@ -10,8 +10,6 @@ const PAIRS = {
   ],
   users: [
     { to: '/admin/usuarios', key: 'admin.tabs.users' },
-    { to: '/admin/reservas', label: 'Reservas' },
-    { to: '/admin/agendamento-em-massa', label: 'Agendamento em massa' },
     { to: '/configuracoes/api', key: 'admin.tabs.api' },
   ],
 }

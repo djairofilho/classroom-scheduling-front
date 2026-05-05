@@ -66,7 +66,7 @@ Obs.: a esquerda esta o que o front atual chama; a direita uma rota sugerida mai
 - `PATCH /reservas/:id/recusar` -> `PATCH /reservations/:id/reject`
 - `POST /reservas/lote` -> `POST /reservations/bulk`
   - body:
-    `{ "solicitanteId": 10, "espacoId": 7, "dataInicio": "2026-05-01", "dataFim": "2026-06-30", "diasSemana": [1,2,3,4,5], "horaInicio": "19:00", "horaFim": "21:00", "motivo": "string" }`
+    `{ "solicitanteId": 10, "espacoId": 7, "dataInicio": "2026-05-01", "dataFim": "2026-06-30", "diasSemana": [1,2,3,4,5], "horaInicio": "19:00", "horaFim": "21:00", "motivo": "string", "statusInicial": "APROVADA", "aprovacaoAutomatica": true }`
   - response exemplo:
     `{ "quantidadeCriada": 24, "quantidadeIgnorada": 2 }`
 - `GET /reservas/por-solicitante?solicitanteId=10` -> `GET /reservations?requesterId=10`
@@ -129,6 +129,9 @@ Transicoes:
 4. usuario/admin cancela:
    - `PENDENTE` -> `CANCELADA`
    - `APROVADA` -> `CANCELADA`
+
+Excecao para agendamento em massa:
+- quando criado por `ADMIN` via `POST /reservas/lote`, o backend deve criar com status `APROVADA` automaticamente (sem passar por `PENDENTE`).
 
 Regras de exibicao no frontend:
 - usuario comum:
@@ -277,6 +280,20 @@ Regra obrigatoria:
 - nao permitir cadastro como ADMIN por este endpoint
 - payload de cadastro publico sempre cria usuario com papel USER (solicitante)
 - tentativa de enviar `papel=ADMIN` deve ser ignorada ou rejeitada com 403/400
+
+11) POST /reservas/lote (criado por admin)
+Regras:
+- endpoint permitido para `ADMIN`
+- criar reservas recorrentes dentro do periodo e dias da semana informados
+- tratar conflito por ocorrencia (pular conflito e continuar, retornando contador de ignoradas)
+- criar com status `APROVADA` automaticamente
+- ignorar/validar campos `statusInicial` e `aprovacaoAutomatica` no backend por seguranca
+Response 200 exemplo:
+{
+  "quantidadeCriada": 24,
+  "quantidadeIgnorada": 2,
+  "idsCriados": [101, 102, 103]
+}
 ```
 
 ## Scripts

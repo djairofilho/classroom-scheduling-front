@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm uninstall *)",
+      "Bash(npm install *)",
+      "Bash(npm view *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(./mvnw -q -DskipTests compile)",
+      "PowerShell(& \"C:\\\\Users\\\\Marqu\\\\classroom-scheduling-back\\\\mvnw.cmd\" -f \"C:\\\\Users\\\\Marqu\\\\classroom-scheduling-back\\\\pom.xml\" -q -DskipTests compile 2>&1)",
+      "PowerShell($ErrorActionPreference='SilentlyContinue')",
+      "PowerShell(& \"C:\\\\Users\\\\Marqu\\\\classroom-scheduling-back\\\\mvnw.cmd\" -f \"C:\\\\Users\\\\Marqu\\\\classroom-scheduling-back\\\\pom.xml\" -DskipTests compile 2>&1)"
+    ]
+  }
+}

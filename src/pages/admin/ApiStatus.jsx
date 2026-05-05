@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { CheckCircle2, RefreshCw, Server } from 'lucide-react'
+import { CheckCircle2, RefreshCw } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -38,7 +38,7 @@ export function ApiStatusPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <PageHeader title={t('admin.api.title')} description={t('admin.api.description')} icon={Server} />
+      <PageHeader title={t('admin.api.title')} description={t('admin.api.description')} />
       <AdminTabs pair="users" />
 
       {loading && <LoadingBlock label={t('async.apiLoad')} />}

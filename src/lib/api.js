@@ -28,15 +28,15 @@ async function apiRequest(path, options = {}) {
   if (!response.ok) {
     const text = await response.text()
     let message = text || `Erro ${response.status}`
-    try {
-      const parsed = text ? JSON.parse(text) : null
-      if (parsed?.message) {
-        message = parsed.message
-      } else if (parsed?.error) {
-        message = parsed.error
+    if (text) {
+      try {
+        const parsed = JSON.parse(text)
+        if (parsed && typeof parsed === 'object') {
+          message = parsed.erro ?? parsed.message ?? parsed.error ?? message
+        }
+      } catch {
+        // text is not JSON - keep raw message
       }
-    } catch {
-      // mantém texto bruto
     }
     const error = new Error(message)
     error.status = response.status
@@ -92,7 +92,6 @@ export const api = {
   listEspacosPorPredio: (predioId) => apiRequest(`/espacos/por-predio${queryString({ predioId })}`),
   getEspaco: (id) => apiRequest(`/espacos/${id}`),
   createEspaco: (payload) => apiRequest('/espacos', { method: 'POST', body: JSON.stringify(payload) }),
-  updateEspaco: (id, payload) => apiRequest(`/espacos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   removeEspaco: (id) => apiRequest(`/espacos/${id}`, { method: 'DELETE' }),
   updateEspacoIndisponibilidade: (id, payload) =>
     apiRequest(`/espacos/${id}/indisponibilidade`, { method: 'PATCH', body: JSON.stringify(payload) }),
@@ -100,23 +99,15 @@ export const api = {
   listPredios: () => apiRequest('/predios'),
   getPredio: (id) => apiRequest(`/predios/${id}`),
   createPredio: (payload) => apiRequest('/predios', { method: 'POST', body: JSON.stringify(payload) }),
-  updatePredio: (id, payload) => apiRequest(`/predios/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  removePredio: (id) => apiRequest(`/predios/${id}`, { method: 'DELETE' }),
   findPredioByCodigo: (codigo) => apiRequest(`/predios/buscar${queryString({ codigo })}`),
 
   listReservas: () => apiRequest('/reservas'),
   listReservasAtivas: () => apiRequest('/reservas/ativas'),
   listReservasPorSolicitante: (solicitanteId) =>
     apiRequest(`/reservas/por-solicitante${queryString({ solicitanteId })}`),
-  listReservasPorEspacoEData: (espacoId, data) =>
-    apiRequest(`/reservas/por-espaco${queryString({ espacoId, data })}`),
   getReserva: (id) => apiRequest(`/reservas/${id}`),
   createReserva: (payload) => apiRequest('/reservas', { method: 'POST', body: JSON.stringify(payload) }),
-  createReservasEmMassa: (payload) =>
-    apiRequest('/reservas/lote', { method: 'POST', body: JSON.stringify(payload) }),
   cancelarReserva: (id) => apiRequest(`/reservas/${id}/cancelar`, { method: 'PATCH' }),
-  aprovarReserva: (id) => apiRequest(`/reservas/${id}/aprovar`, { method: 'PATCH' }),
-  recusarReserva: (id) => apiRequest(`/reservas/${id}/recusar`, { method: 'PATCH' }),
 
   listNotificacoes: () => apiRequest('/notificacoes'),
   listNotificacoesPorDestinatario: (destinatarioId) =>

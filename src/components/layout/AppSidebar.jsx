@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Building2, CalendarRange, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, PlusSquare, Search, UserCircle2, Users } from 'lucide-react'
+import { Building2, LayoutDashboard, ListChecks, LogOut, PlusSquare, Search, Users } from 'lucide-react'
+import { UserCircle2 } from 'lucide-react'
 
 import {
   Sidebar,
@@ -37,8 +38,6 @@ export function AppSidebar() {
 
   const adminItems = [
     { title: t('admin.tabs.spaces'), url: '/admin/espacos', icon: Building2 },
-    { title: 'Aprovação de reservas', url: '/admin/reservas', icon: ClipboardCheck },
-    { title: 'Agendamento em massa', url: '/admin/agendamento-em-massa', icon: CalendarRange },
     { title: t('admin.tabs.users'), url: '/admin/usuarios', icon: Users },
   ]
 

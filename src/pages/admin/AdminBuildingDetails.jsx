@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Building2, DoorOpen } from 'lucide-react'
+import { ArrowLeft, DoorOpen } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { AdminTabs } from '@/components/common/AdminTabs'
@@ -41,7 +41,6 @@ export function AdminBuildingDetailsPage() {
       <PageHeader
         title={data?.building?.name ?? 'Detalhes do prédio'}
         description={data ? `${data.building.code} · ${data.building.location}` : 'Carregando...'}
-        icon={Building2}
       />
       <AdminTabs pair="spaces" />
 
