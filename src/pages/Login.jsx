@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -13,11 +13,24 @@ export function LoginPage() {
   const { user, login, register } = useAuth()
   const { t } = useI18n()
   const [mode, setMode] = useState('login')
-  const [form, setForm] = useState({ email: '', senha: '' })
+  const [form, setForm] = useState({
+    nome: '',
+    email: '',
+    senha: '',
+    tipoSolicitante: 'ALUNO',
+    matricula: '',
+    cracha: '',
+  })
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    if (location.state?.sessionExpiredMessage) {
+      setMessage(location.state.sessionExpiredMessage)
+    }
+  }, [location.state])
 
   if (user) {
     return <Navigate to={location.state?.from?.pathname ?? '/'} replace />
@@ -29,11 +42,37 @@ export function LoginPage() {
     setMessage('')
 
     try {
-      const payload = { email: form.email, senha: form.senha }
-
       if (mode === 'register') {
-        await register({ ...payload, papel: 'USER' })
+        if (!form.nome.trim()) {
+          setMessage('Nome é obrigatório.')
+          return
+        }
+        if (!form.tipoSolicitante) {
+          setMessage('Tipo de solicitante é obrigatório.')
+          return
+        }
+        if (form.tipoSolicitante === 'ALUNO' && !form.matricula.trim()) {
+          setMessage('Matrícula é obrigatória para aluno.')
+          return
+        }
+        if (form.tipoSolicitante === 'FUNCIONARIO' && !form.cracha.trim()) {
+          setMessage('Crachá é obrigatório para funcionário.')
+          return
+        }
+
+        const payload = {
+          nome: form.nome.trim(),
+          email: form.email.trim(),
+          senha: form.senha,
+          tipoSolicitante: form.tipoSolicitante,
+          ...(form.tipoSolicitante === 'ALUNO'
+            ? { matricula: form.matricula.trim() }
+            : { cracha: form.cracha.trim() }),
+        }
+
+        await register(payload)
       } else {
+        const payload = { email: form.email.trim(), senha: form.senha }
         await login(payload)
       }
 
@@ -45,7 +84,19 @@ export function LoginPage() {
     }
   }
 
-  const submitDisabled = submitting || !form.email || form.senha.length < 6
+  const registerMissing =
+    !form.nome.trim() ||
+    !form.email.trim() ||
+    form.senha.length < 6 ||
+    !form.tipoSolicitante ||
+    (form.tipoSolicitante === 'ALUNO' && !form.matricula.trim()) ||
+    (form.tipoSolicitante === 'FUNCIONARIO' && !form.cracha.trim())
+
+  const submitDisabled =
+    submitting ||
+    (mode === 'login'
+      ? !form.email.trim() || form.senha.length < 6
+      : registerMissing)
 
   return (
     <main
@@ -71,6 +122,20 @@ export function LoginPage() {
         </Tabs>
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          {mode === 'register' && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="register-name">Nome completo</Label>
+              <Input
+                id="register-name"
+                type="text"
+                autoComplete="name"
+                placeholder="Ana Silva"
+                value={form.nome}
+                onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="login-email">E-mail institucional</Label>
             <Input
@@ -95,6 +160,54 @@ export function LoginPage() {
               onChange={(event) => setForm((current) => ({ ...current, senha: event.target.value }))}
             />
           </div>
+
+          {mode === 'register' && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="register-type">Tipo de solicitante</Label>
+              <select
+                id="register-type"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.tipoSolicitante}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    tipoSolicitante: event.target.value,
+                    matricula: '',
+                    cracha: '',
+                  }))
+                }
+              >
+                <option value="ALUNO">ALUNO</option>
+                <option value="FUNCIONARIO">FUNCIONARIO</option>
+              </select>
+            </div>
+          )}
+
+          {mode === 'register' && form.tipoSolicitante === 'ALUNO' && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="register-matricula">Matrícula</Label>
+              <Input
+                id="register-matricula"
+                type="text"
+                placeholder="20251234"
+                value={form.matricula}
+                onChange={(event) => setForm((current) => ({ ...current, matricula: event.target.value }))}
+              />
+            </div>
+          )}
+
+          {mode === 'register' && form.tipoSolicitante === 'FUNCIONARIO' && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="register-cracha">Crachá</Label>
+              <Input
+                id="register-cracha"
+                type="text"
+                placeholder="CR-9981"
+                value={form.cracha}
+                onChange={(event) => setForm((current) => ({ ...current, cracha: event.target.value }))}
+              />
+            </div>
+          )}
 
           <Button type="submit" size="lg" className="mt-2 w-full" disabled={submitDisabled}>
             {submitting ? 'Acessando...' : mode === 'register' ? 'Criar conta' : 'Entrar'}

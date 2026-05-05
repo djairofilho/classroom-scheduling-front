@@ -12,6 +12,7 @@ import { LoginPage } from './pages/Login'
 import { MyBookingsPage } from './pages/MyBookings'
 import { NewBookingPage } from './pages/NewBooking'
 import { NotificationsPage } from './pages/Notifications'
+import { ProfilePage } from './pages/Profile'
 import { SearchSpacesPage } from './pages/SearchSpaces'
 import { SpaceDetailsPage } from './pages/SpaceDetails'
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/reservas/nova" element={<NewBookingPage />} />
           <Route path="/reservas" element={<MyBookingsPage />} />
           <Route path="/notificacoes" element={<NotificationsPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/admin/espacos" element={<AdminSpacesPage />} />
             <Route path="/admin/predios" element={<AdminBuildingsPage />} />
