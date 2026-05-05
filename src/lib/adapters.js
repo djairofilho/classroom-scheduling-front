@@ -25,15 +25,21 @@ export function mapEspaco(espaco) {
     statusTone: indisponivel ? 'danger' : 'success',
     maintenanceReason: espaco.motivoIndisponibilidade ?? '',
     floor: espaco.predio?.localizacao ?? 'Campus principal',
-    weeklySchedule: [
-      ['free', 'reservation', 'free', 'reservation', 'free', 'free'],
-      ['free', 'free', indisponivel ? 'maintenance' : 'free', 'free', 'event', 'free'],
-    ],
   }
 }
 
 export function mapReserva(reserva) {
   const cancelada = Boolean(reserva.cancelada)
+  const rawStatus = typeof reserva.status === 'string' ? reserva.status.toUpperCase() : null
+  const status = rawStatus ?? (cancelada ? 'RECUSADA' : 'APROVADA')
+  const statusKey =
+    status === 'PENDENTE'
+      ? 'common.statuses.attention'
+      : status === 'RECUSADA'
+        ? 'common.statuses.cancelled'
+        : cancelada
+          ? 'common.statuses.cancelled'
+          : 'common.statuses.active'
 
   return {
     id: reserva.id,
@@ -47,7 +53,8 @@ export function mapReserva(reserva) {
     date: formatDate(reserva.horarios?.inicio),
     time: formatTimeRange(reserva.horarios?.inicio, reserva.horarios?.fim),
     reason: reserva.motivo ?? 'Sem motivo informado',
-    statusKey: cancelada ? 'common.statuses.cancelled' : 'common.statuses.active',
+    status,
+    statusKey,
     cancelada,
     createdAt: reserva.criadaEm,
     start: reserva.horarios?.inicio,

@@ -33,7 +33,7 @@ export function DashboardPage() {
     return {
       reservasAtivas: reservasAtivas
         .map(mapReserva)
-        .filter((reserva) => !reserva.cancelada)
+        .filter((reserva) => reserva.status === 'APROVADA' && !reserva.cancelada)
         .sort((first, second) => new Date(first.start).getTime() - new Date(second.start).getTime()),
       espacos: espacos.map(mapEspaco),
       notificacoes: notificacoes.map(mapNotificacao),

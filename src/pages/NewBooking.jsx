@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, PlusSquare } from 'lucide-react'
 
@@ -41,6 +41,9 @@ export function NewBookingPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [busyRanges, setBusyRanges] = useState([])
+  const [loadingBusyRanges, setLoadingBusyRanges] = useState(false)
+  const [busyRangesUnavailable, setBusyRangesUnavailable] = useState(false)
 
   const loadBookingData = useCallback(async () => {
     const [predios, espacos] = await Promise.all([api.listPredios(), api.listEspacos()])
@@ -79,6 +82,68 @@ export function NewBookingPage() {
   }
 
   const selectedBuildingId = form.predioId || selectedSpace?.buildingId?.toString() || ''
+
+  useEffect(() => {
+    async function loadBusyRanges() {
+      if (!form.espacoId || !form.data) {
+        setBusyRanges([])
+        setBusyRangesUnavailable(false)
+        return
+      }
+      setLoadingBusyRanges(true)
+      try {
+        let reservas = []
+        try {
+          reservas = await api.listReservasPorEspacoEData(Number(form.espacoId), form.data)
+        } catch {
+          try {
+            const ativas = await api.listReservasAtivas()
+            reservas = ativas.filter((item) => {
+              const espacoId = item.espaco?.id ?? item.espacoId
+              return Number(espacoId) === Number(form.espacoId) && isSameLocalDate(item.horarios?.inicio ?? item.inicio, form.data)
+            })
+          } catch {
+            const allReservas = await api.listReservas()
+            reservas = allReservas.filter((item) => {
+              const espacoId = item.espaco?.id ?? item.espacoId
+              return Number(espacoId) === Number(form.espacoId) && isSameLocalDate(item.horarios?.inicio ?? item.inicio, form.data)
+            })
+          }
+        }
+
+        const activeRanges = reservas
+          .filter((item) => isBusyReservation(item))
+          .map((item) => ({
+            start: toMinutes(item.horarios?.inicio ?? item.inicio),
+            end: toMinutes(item.horarios?.fim ?? item.fim),
+          }))
+          .filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end) && item.end > item.start)
+        setBusyRanges(activeRanges)
+        setBusyRangesUnavailable(false)
+      } catch {
+        setBusyRanges([])
+        setBusyRangesUnavailable(true)
+      } finally {
+        setLoadingBusyRanges(false)
+      }
+    }
+
+    loadBusyRanges()
+  }, [form.data, form.espacoId])
+
+  const startOptions = useMemo(() => {
+    const slots = buildTimeSlots()
+    return slots.filter((slot) => !isMinuteBlocked(slot.minutes, busyRanges))
+  }, [busyRanges])
+
+  const endOptions = useMemo(() => {
+    const startMinutes = parseTimeText(form.inicio)
+    if (!Number.isFinite(startMinutes)) return []
+    return buildTimeSlots(startMinutes + 5).filter((slot) => {
+      if (slot.minutes <= startMinutes) return false
+      return !hasOverlap(startMinutes, slot.minutes, busyRanges)
+    })
+  }, [busyRanges, form.inicio])
 
   const formIncomplete =
     !form.espacoId || !form.data || !form.inicio || !form.fim || !form.motivo
@@ -163,7 +228,13 @@ export function NewBookingPage() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     value={selectedBuildingId}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, predioId: event.target.value, espacoId: '' }))
+                      setForm((current) => ({
+                        ...current,
+                        predioId: event.target.value,
+                        espacoId: '',
+                        inicio: '',
+                        fim: '',
+                      }))
                     }
                   >
                     <option value="">{t('bookingForm.chooseBuilding')}</option>
@@ -181,7 +252,7 @@ export function NewBookingPage() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     value={form.espacoId}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, espacoId: event.target.value }))
+                      setForm((current) => ({ ...current, espacoId: event.target.value, inicio: '', fim: '' }))
                     }
                   >
                     <option value="">{t('bookingForm.chooseRoom')}</option>
@@ -209,28 +280,55 @@ export function NewBookingPage() {
                     id="booking-date"
                     type="date"
                     value={form.data}
-                    onChange={(event) => setForm((current) => ({ ...current, data: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, data: event.target.value, inicio: '', fim: '' }))
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="booking-start">{t('bookingForm.startTime')}</Label>
-                  <Input
+                  <select
                     id="booking-start"
-                    type="time"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={form.inicio}
-                    onChange={(event) => setForm((current) => ({ ...current, inicio: event.target.value }))}
-                  />
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, inicio: event.target.value, fim: '' }))
+                    }
+                    disabled={!form.espacoId || !form.data || loadingBusyRanges || busyRangesUnavailable}
+                  >
+                    <option value="">
+                      {loadingBusyRanges ? 'Carregando horários...' : 'Selecione o horário'}
+                    </option>
+                    {startOptions.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.value}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="booking-end">{t('bookingForm.endTime')}</Label>
-                  <Input
+                  <select
                     id="booking-end"
-                    type="time"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={form.fim}
                     onChange={(event) => setForm((current) => ({ ...current, fim: event.target.value }))}
-                  />
+                    disabled={!form.inicio || loadingBusyRanges || busyRangesUnavailable}
+                  >
+                    <option value="">Selecione o horário</option>
+                    {endOptions.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.value}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+              {busyRangesUnavailable && (
+                <p className="mt-2 text-xs text-destructive">
+                  Não foi possível validar os horários ocupados para este espaço. Tente novamente.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -296,4 +394,55 @@ function SummaryRow({ label, value }) {
       <dd className="text-right font-medium">{value}</dd>
     </div>
   )
+}
+
+function buildTimeSlots(start = 7 * 60, end = 22 * 60, step = 5) {
+  const slots = []
+  for (let minute = start; minute <= end; minute += step) {
+    slots.push({
+      minutes: minute,
+      value: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`,
+    })
+  }
+  return slots
+}
+
+function isSameLocalDate(isoDateTime, yyyyMmDd) {
+  if (!isoDateTime || !yyyyMmDd) return false
+  const date = new Date(isoDateTime)
+  if (Number.isNaN(date.getTime())) return false
+  const local = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`
+  return local === yyyyMmDd
+}
+
+function parseTimeText(value) {
+  if (!value || !value.includes(':')) return NaN
+  const [hourText, minuteText] = value.split(':')
+  const hour = Number(hourText)
+  const minute = Number(minuteText)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return NaN
+  return hour * 60 + minute
+}
+
+function toMinutes(isoDateTime) {
+  if (!isoDateTime) return NaN
+  const date = new Date(isoDateTime)
+  if (Number.isNaN(date.getTime())) return NaN
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+function isMinuteBlocked(minute, ranges) {
+  return ranges.some((range) => minute >= range.start && minute < range.end)
+}
+
+function hasOverlap(start, end, ranges) {
+  return ranges.some((range) => start < range.end && end > range.start)
+}
+
+function isBusyReservation(reservation) {
+  if (reservation.cancelada) return false
+  const rawStatus = typeof reservation.status === 'string' ? reservation.status.toUpperCase() : null
+  return rawStatus !== 'RECUSADA'
 }

@@ -30,7 +30,7 @@ import { getCurrentSolicitante } from '@/lib/currentUser'
 
 export function MyBookingsPage() {
   const { t } = useI18n()
-  const [tab, setTab] = useState('active')
+  const [tab, setTab] = useState('pending')
 
   const loadBookings = useCallback(async () => {
     const currentSolicitante = await getCurrentSolicitante()
@@ -41,8 +41,9 @@ export function MyBookingsPage() {
   const { data, loading, error, setData } = useAsyncData(loadBookings)
 
   const buckets = {
-    active: (data ?? []).filter((booking) => !booking.cancelada),
-    cancelled: (data ?? []).filter((booking) => booking.cancelada),
+    pending: (data ?? []).filter((booking) => booking.status === 'PENDENTE'),
+    approved: (data ?? []).filter((booking) => booking.status === 'APROVADA'),
+    rejected: (data ?? []).filter((booking) => booking.status === 'RECUSADA' || booking.cancelada),
     all: data ?? [],
   }
 
@@ -78,18 +79,21 @@ export function MyBookingsPage() {
       {!loading && !error && data && (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="active">
-              {t('bookings.tabs.active')} ({buckets.active.length})
+            <TabsTrigger value="pending">
+              Pendentes ({buckets.pending.length})
             </TabsTrigger>
-            <TabsTrigger value="cancelled">
-              {t('bookings.tabs.cancelled')} ({buckets.cancelled.length})
+            <TabsTrigger value="approved">
+              Aprovadas ({buckets.approved.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Recusadas/Canceladas ({buckets.rejected.length})
             </TabsTrigger>
             <TabsTrigger value="all">
               {t('bookings.tabs.all')} ({buckets.all.length})
             </TabsTrigger>
           </TabsList>
 
-          {['active', 'cancelled', 'all'].map((id) => (
+          {['pending', 'approved', 'rejected', 'all'].map((id) => (
             <TabsContent key={id} value={id} className="mt-4">
               {loading ? (
                 <div className="space-y-3">
@@ -126,7 +130,7 @@ export function MyBookingsPage() {
                           </span>
                         </div>
                       </div>
-                      {!booking.cancelada && (
+                      {(booking.status === 'PENDENTE' || booking.status === 'APROVADA') && !booking.cancelada && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">
