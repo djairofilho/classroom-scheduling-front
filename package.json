@@ -29,7 +29,7 @@
     "date-fns": "^3.6.0",
     "lucide-react": "^0.462.0",
     "react": "^19.2.5",
-    "react-day-picker": "^8.10.1",
+    "react-day-picker": "^9.2.0",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.9.4",
     "sonner": "^1.7.4",
