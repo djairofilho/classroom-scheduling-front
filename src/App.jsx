@@ -5,6 +5,8 @@ import { useAuth } from './lib/authContext'
 import { ApiStatusPage } from './pages/admin/ApiStatus'
 import { AdminBuildingsPage } from './pages/admin/AdminBuildings'
 import { AdminBuildingDetailsPage } from './pages/admin/AdminBuildingDetails'
+import { AdminBulkSchedulingPage } from './pages/admin/AdminBulkScheduling'
+import { AdminReservationsPage } from './pages/admin/AdminReservations'
 import { AdminSpacesPage } from './pages/admin/AdminSpaces'
 import { AdminUsersPage } from './pages/admin/AdminUsers'
 import { DashboardPage } from './pages/Dashboard'
@@ -34,6 +36,8 @@ function App() {
             <Route path="/admin/predios" element={<AdminBuildingsPage />} />
             <Route path="/admin/predios/:buildingId" element={<AdminBuildingDetailsPage />} />
             <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+            <Route path="/admin/reservas" element={<AdminReservationsPage />} />
+            <Route path="/admin/agendamento-em-massa" element={<AdminBulkSchedulingPage />} />
             <Route path="/configuracoes/api" element={<ApiStatusPage />} />
           </Route>
         </Route>

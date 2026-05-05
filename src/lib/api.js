@@ -107,7 +107,11 @@ export const api = {
     apiRequest(`/reservas/por-solicitante${queryString({ solicitanteId })}`),
   getReserva: (id) => apiRequest(`/reservas/${id}`),
   createReserva: (payload) => apiRequest('/reservas', { method: 'POST', body: JSON.stringify(payload) }),
+  createReservasEmMassa: (payload) =>
+    apiRequest('/reservas/lote', { method: 'POST', body: JSON.stringify(payload) }),
   cancelarReserva: (id) => apiRequest(`/reservas/${id}/cancelar`, { method: 'PATCH' }),
+  aprovarReserva: (id) => apiRequest(`/reservas/${id}/aprovar`, { method: 'PATCH' }),
+  recusarReserva: (id) => apiRequest(`/reservas/${id}/recusar`, { method: 'PATCH' }),
 
   listNotificacoes: () => apiRequest('/notificacoes'),
   listNotificacoesPorDestinatario: (destinatarioId) =>
