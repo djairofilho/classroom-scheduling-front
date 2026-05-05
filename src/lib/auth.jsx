@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const usuario = await api.getMe()
+        const usuario = await api.getMyProfile()
         if (active) {
           setUser(usuario)
         }
@@ -47,14 +47,16 @@ export function AuthProvider({ children }) {
       async login(payload) {
         const response = await api.login(payload)
         setAuthToken(response.token)
-        setUser(response.usuario)
-        return response.usuario
+        const usuario = await api.getMyProfile()
+        setUser(usuario)
+        return usuario
       },
       async register(payload) {
         const response = await api.register(payload)
         setAuthToken(response.token)
-        setUser(response.usuario)
-        return response.usuario
+        const usuario = await api.getMyProfile()
+        setUser(usuario)
+        return usuario
       },
       logout() {
         setAuthToken(null)

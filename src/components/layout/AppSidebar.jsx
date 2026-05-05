@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Building2, CalendarRange, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, PlusSquare, Search, Users } from 'lucide-react'
+import { Building2, CalendarRange, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, PlusSquare, Search, UserCircle2, Users } from 'lucide-react'
 
 import {
   Sidebar,
@@ -32,6 +32,7 @@ export function AppSidebar() {
     { title: t('shell.nav.search'), url: '/espacos', icon: Search },
     { title: t('shell.nav.newReservation'), url: '/reservas/nova', icon: PlusSquare },
     { title: t('shell.nav.bookings'), url: '/reservas', icon: ListChecks },
+    { title: 'Perfil', url: '/perfil', icon: UserCircle2 },
   ]
 
   const adminItems = [

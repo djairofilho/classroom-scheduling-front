@@ -27,7 +27,18 @@ async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     const text = await response.text()
-    const error = new Error(text || `Erro ${response.status}`)
+    let message = text || `Erro ${response.status}`
+    try {
+      const parsed = text ? JSON.parse(text) : null
+      if (parsed?.message) {
+        message = parsed.message
+      } else if (parsed?.error) {
+        message = parsed.error
+      }
+    } catch {
+      // mantém texto bruto
+    }
+    const error = new Error(message)
     error.status = response.status
     throw error
   }
@@ -57,11 +68,23 @@ function queryString(params) {
   return text ? `?${text}` : ''
 }
 
+/**
+ * @typedef {Object} UserProfile
+ * @property {number} id
+ * @property {string} nome
+ * @property {string} email
+ * @property {string} papel
+ * @property {"ALUNO"|"FUNCIONARIO"|null} tipoSolicitante
+ * @property {boolean=} ativo
+ */
+
 export const api = {
   getHealth: () => apiRequest('/health'),
 
   login: (payload) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
   register: (payload) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  /** @returns {Promise<UserProfile>} */
+  getMyProfile: () => apiRequest('/auth/me'),
   getMe: () => apiRequest('/auth/me'),
 
   listEspacos: () => apiRequest('/espacos'),
