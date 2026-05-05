@@ -34,7 +34,7 @@ export function mapReserva(reserva) {
   const status = rawStatus ?? (cancelada ? 'RECUSADA' : 'APROVADA')
   const statusKey =
     status === 'PENDENTE'
-      ? 'common.statuses.attention'
+      ? 'common.statuses.waiting'
       : status === 'RECUSADA'
         ? 'common.statuses.cancelled'
         : cancelada
