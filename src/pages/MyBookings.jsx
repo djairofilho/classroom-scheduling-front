@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, ListChecks, MapPin, PlusSquare, Trash2 } from 'lucide-react'
+import { Clock, MapPin, PlusSquare, Trash2 } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -30,7 +30,7 @@ import { getCurrentSolicitante } from '@/lib/currentUser'
 
 export function MyBookingsPage() {
   const { t } = useI18n()
-  const [tab, setTab] = useState('pending')
+  const [tab, setTab] = useState('active')
 
   const loadBookings = useCallback(async () => {
     const currentSolicitante = await getCurrentSolicitante()
@@ -41,9 +41,8 @@ export function MyBookingsPage() {
   const { data, loading, error, setData } = useAsyncData(loadBookings)
 
   const buckets = {
-    pending: (data ?? []).filter((booking) => booking.status === 'PENDENTE'),
-    approved: (data ?? []).filter((booking) => booking.status === 'APROVADA'),
-    rejected: (data ?? []).filter((booking) => booking.status === 'RECUSADA' || booking.cancelada),
+    active: (data ?? []).filter((booking) => !booking.cancelada),
+    cancelled: (data ?? []).filter((booking) => booking.cancelada),
     all: data ?? [],
   }
 
@@ -59,10 +58,9 @@ export function MyBookingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-7xl">
       <PageHeader
         title={t('bookings.title')}
-        icon={ListChecks}
         actions={
           <Button asChild>
             <Link to="/reservas/nova">
@@ -79,21 +77,18 @@ export function MyBookingsPage() {
       {!loading && !error && data && (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="pending">
-              Pendentes ({buckets.pending.length})
+            <TabsTrigger value="active">
+              {t('bookings.tabs.active')} ({buckets.active.length})
             </TabsTrigger>
-            <TabsTrigger value="approved">
-              Aprovadas ({buckets.approved.length})
-            </TabsTrigger>
-            <TabsTrigger value="rejected">
-              Recusadas/Canceladas ({buckets.rejected.length})
+            <TabsTrigger value="cancelled">
+              {t('bookings.tabs.cancelled')} ({buckets.cancelled.length})
             </TabsTrigger>
             <TabsTrigger value="all">
               {t('bookings.tabs.all')} ({buckets.all.length})
             </TabsTrigger>
           </TabsList>
 
-          {['pending', 'approved', 'rejected', 'all'].map((id) => (
+          {['active', 'cancelled', 'all'].map((id) => (
             <TabsContent key={id} value={id} className="mt-4">
               {loading ? (
                 <div className="space-y-3">
@@ -130,7 +125,7 @@ export function MyBookingsPage() {
                           </span>
                         </div>
                       </div>
-                      {(booking.status === 'PENDENTE' || booking.status === 'APROVADA') && !booking.cancelada && (
+                      {!booking.cancelada && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">

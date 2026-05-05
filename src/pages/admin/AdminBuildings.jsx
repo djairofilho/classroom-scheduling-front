@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Edit, Layers, MapPin, PlusSquare, Trash2 } from 'lucide-react'
+import { MapPin, PlusSquare } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
@@ -25,13 +25,13 @@ const HEADER_GRADIENTS = [
   'bg-gradient-to-br from-success/20 via-card to-primary-soft',
 ]
 
+const EMPTY_FORM = { nome: '', codigo: '', localizacao: '' }
+
 export function AdminBuildingsPage() {
   const { t } = useI18n()
   const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ nome: '', codigo: '', localizacao: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const loadBuildings = useCallback(async () => {
     const [predios, espacos] = await Promise.all([api.listPredios(), api.listEspacos()])
@@ -49,33 +49,26 @@ export function AdminBuildingsPage() {
           ? `${Math.round(((rooms.length - availableCount) / rooms.length) * 100)}%`
           : '0%',
         statusKey:
-          availableCount === rooms.length
-            ? 'common.statuses.operating'
-            : availableCount === 0
-              ? 'common.statuses.attention'
-              : 'common.statuses.partial',
+          rooms.length === 0
+            ? 'common.statuses.noSchedule'
+            : availableCount === rooms.length
+              ? 'common.statuses.operating'
+              : availableCount === 0
+                ? 'common.statuses.attention'
+                : 'common.statuses.partial',
       }
     })
   }, [])
 
   const { data, loading, error, setData } = useAsyncData(loadBuildings)
 
-  function resetForm() {
-    setForm({ nome: '', codigo: '', localizacao: '' })
-  }
-
   function openCreate() {
-    resetForm()
+    setForm(EMPTY_FORM)
     setCreateOpen(true)
   }
 
-  function openEdit(building) {
-    setEditingId(building.id)
-    setForm({ nome: building.name, codigo: building.code, localizacao: building.location })
-    setEditOpen(true)
-  }
-
-  async function handleCreate() {
+  async function handleCreate(event) {
+    event.preventDefault()
     if (!form.nome || !form.codigo || !form.localizacao) return
     setSaving(true)
     try {
@@ -86,47 +79,13 @@ export function AdminBuildingsPage() {
           ...mapped,
           roomsCount: 0,
           occupancy: '0%',
-          statusKey: 'common.statuses.operating',
+          statusKey: 'common.statuses.noSchedule',
         },
         ...current,
       ])
       setCreateOpen(false)
+      setForm(EMPTY_FORM)
       toast.success('Prédio criado com sucesso.')
-    } catch (caughtError) {
-      toast.error(caughtError.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleEdit() {
-    if (!editingId || !form.nome || !form.codigo || !form.localizacao) return
-    setSaving(true)
-    try {
-      const updated = await api.updatePredio(editingId, form)
-      const mapped = mapPredio(updated)
-      setData((current) =>
-        current.map((item) => (item.id === mapped.id ? { ...item, ...mapped } : item)),
-      )
-      setEditOpen(false)
-      toast.success('Prédio atualizado com sucesso.')
-    } catch (caughtError) {
-      toast.error(caughtError.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleDelete(building) {
-    const confirmed = window.confirm(
-      `Deseja remover o prédio "${building.name}"? Essa ação deve remover as salas relacionadas em cascata.`,
-    )
-    if (!confirmed) return
-    setSaving(true)
-    try {
-      await api.removePredio(building.id)
-      setData((current) => current.filter((item) => item.id !== building.id))
-      toast.success('Prédio removido com sucesso.')
     } catch (caughtError) {
       toast.error(caughtError.message)
     } finally {
@@ -140,7 +99,6 @@ export function AdminBuildingsPage() {
         eyebrow={t('admin.buildings.eyebrow')}
         title={t('admin.buildings.title')}
         description={t('admin.buildings.description')}
-        icon={Layers}
         actions={
           <Button onClick={openCreate}>
             <PlusSquare className="h-4 w-4" />
@@ -190,25 +148,11 @@ export function AdminBuildingsPage() {
                     <dd className="mt-0.5 font-semibold">{building.occupancy}</dd>
                   </div>
                 </dl>
-                <div className="flex gap-2 pt-1">
-                  <Button asChild variant="outline" size="sm" className="flex-1">
+                <div className="pt-1">
+                  <Button asChild variant="outline" size="sm" className="w-full">
                     <Link to={`/admin/predios/${building.id}`}>
-                    {t('admin.buildings.viewDetails')}
+                      {t('admin.buildings.viewDetails')}
                     </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(building)}>
-                    <Edit className="h-4 w-4" />
-                    {t('common.edit')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(building)}
-                    disabled={saving}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
                   </Button>
                 </div>
               </div>
@@ -222,65 +166,47 @@ export function AdminBuildingsPage() {
           <DialogHeader>
             <DialogTitle>Novo prédio</DialogTitle>
           </DialogHeader>
-          <BuildingForm form={form} onChange={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate} disabled={saving}>
-              {saving ? 'Salvando...' : 'Criar prédio'}
-            </Button>
-          </DialogFooter>
+          <form className="space-y-4" onSubmit={handleCreate}>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="building-name">Nome</Label>
+              <Input
+                id="building-name"
+                value={form.nome}
+                onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="building-code">Código</Label>
+              <Input
+                id="building-code"
+                value={form.codigo}
+                onChange={(event) => setForm((current) => ({ ...current, codigo: event.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="building-location">Localização</Label>
+              <Input
+                id="building-location"
+                value={form.localizacao}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, localizacao: event.target.value }))
+                }
+                required
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando...' : 'Criar prédio'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar prédio</DialogTitle>
-          </DialogHeader>
-          <BuildingForm form={form} onChange={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleEdit} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar alterações'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-function BuildingForm({ form, onChange }) {
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2">
-        <Label htmlFor="building-name">Nome</Label>
-        <Input
-          id="building-name"
-          value={form.nome}
-          onChange={(event) => onChange((current) => ({ ...current, nome: event.target.value }))}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="building-code">Código</Label>
-        <Input
-          id="building-code"
-          value={form.codigo}
-          onChange={(event) => onChange((current) => ({ ...current, codigo: event.target.value }))}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="building-location">Localização</Label>
-        <Input
-          id="building-location"
-          value={form.localizacao}
-          onChange={(event) => onChange((current) => ({ ...current, localizacao: event.target.value }))}
-        />
-      </div>
     </div>
   )
 }

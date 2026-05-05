@@ -60,8 +60,8 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <PageHeader title={t('notifications.title')} description={t('notifications.description')} icon={Bell} />
+    <div className="mx-auto w-full max-w-7xl">
+      <PageHeader title={t('notifications.title')} description={t('notifications.description')} />
 
       {loading && <LoadingBlock label={t('async.notificationsLoad')} />}
       {error && <ErrorBlock message={t('async.notificationsError')} />}

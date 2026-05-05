@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search as SearchIcon, Users, DoorOpen } from 'lucide-react'
+import { Search as SearchIcon, Users } from 'lucide-react'
 
 import { ErrorBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -62,7 +62,7 @@ export function SearchSpacesPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      <PageHeader title={t('search.title')} description={t('search.description')} icon={DoorOpen} />
+      <PageHeader title={t('search.title')} description={t('search.description')} />
 
       <Card className="mb-6 p-4">
         <div className="grid gap-3 md:grid-cols-12">

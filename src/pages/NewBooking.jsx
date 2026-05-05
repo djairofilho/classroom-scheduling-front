@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, PlusSquare } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+
+import { ptBR } from 'date-fns/locale'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
+import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
@@ -25,6 +27,7 @@ import { api } from '@/lib/api'
 import { mapEspaco, mapPredio } from '@/lib/adapters'
 import { useAuth } from '@/lib/authContext'
 import { combineDateAndTime } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 export function NewBookingPage() {
   const { t } = useI18n()
@@ -55,34 +58,29 @@ export function NewBookingPage() {
 
   const { data, loading, error } = useAsyncData(loadBookingData)
 
-  const filteredSpaces = useMemo(() => {
-    if (!data) return []
-    const currentBuildingId =
-      form.predioId ||
-      data.spaces.find((space) => String(space.id) === form.espacoId)?.buildingId?.toString() ||
-      ''
-
-    return data.spaces.filter((space) => !currentBuildingId || String(space.buildingId) === currentBuildingId)
-  }, [data, form.espacoId, form.predioId])
+  // Espaços disponíveis no prédio selecionado.
+  const availableSpaces = useMemo(() => {
+    if (!data || !form.predioId) return []
+    return data.spaces.filter(
+      (space) =>
+        String(space.buildingId) === String(form.predioId) &&
+        space.statusKey === 'common.statuses.available',
+    )
+  }, [data, form.predioId])
 
   const selectedSpace = useMemo(
-    () =>
-      filteredSpaces.find((space) => String(space.id) === form.espacoId) ??
-      data?.spaces?.find((space) => String(space.id) === form.espacoId) ??
-      null,
-    [data, filteredSpaces, form.espacoId],
+    () => data?.spaces?.find((space) => String(space.id) === form.espacoId) ?? null,
+    [data, form.espacoId],
   )
 
-  const summary = {
-    space: selectedSpace?.name ?? '—',
-    building: selectedSpace?.building ?? '—',
-    capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '—',
-    dateTime: form.data && form.inicio && form.fim ? `${form.data} • ${form.inicio} – ${form.fim}` : '—',
-    requester: user?.email ?? '—',
-  }
+  const selectedBuilding = useMemo(() => {
+    if (!data) return null
+    const buildingId = form.predioId || (selectedSpace?.buildingId ? String(selectedSpace.buildingId) : '')
+    if (!buildingId) return null
+    return data.buildings.find((b) => String(b.id) === buildingId) ?? null
+  }, [data, form.predioId, selectedSpace])
 
-  const selectedBuildingId = form.predioId || selectedSpace?.buildingId?.toString() || ''
-
+  // Carrega janelas ocupadas para o espaço/data selecionados.
   useEffect(() => {
     async function loadBusyRanges() {
       if (!form.espacoId || !form.data) {
@@ -92,27 +90,22 @@ export function NewBookingPage() {
       }
       setLoadingBusyRanges(true)
       try {
-        let reservas = []
+        let reservas
         try {
-          reservas = await api.listReservasPorEspacoEData(Number(form.espacoId), form.data)
+          reservas = await api.listReservasAtivas()
         } catch {
-          try {
-            const ativas = await api.listReservasAtivas()
-            reservas = ativas.filter((item) => {
-              const espacoId = item.espaco?.id ?? item.espacoId
-              return Number(espacoId) === Number(form.espacoId) && isSameLocalDate(item.horarios?.inicio ?? item.inicio, form.data)
-            })
-          } catch {
-            const allReservas = await api.listReservas()
-            reservas = allReservas.filter((item) => {
-              const espacoId = item.espaco?.id ?? item.espacoId
-              return Number(espacoId) === Number(form.espacoId) && isSameLocalDate(item.horarios?.inicio ?? item.inicio, form.data)
-            })
-          }
+          reservas = await api.listReservas()
         }
+        const sameSpaceAndDay = reservas.filter((item) => {
+          const espacoId = item.espaco?.id ?? item.espacoId
+          return (
+            Number(espacoId) === Number(form.espacoId) &&
+            isSameLocalDate(item.horarios?.inicio ?? item.inicio, form.data)
+          )
+        })
 
-        const activeRanges = reservas
-          .filter((item) => isBusyReservation(item))
+        const activeRanges = sameSpaceAndDay
+          .filter((item) => !item.cancelada)
           .map((item) => ({
             start: toMinutes(item.horarios?.inicio ?? item.inicio),
             end: toMinutes(item.horarios?.fim ?? item.fim),
@@ -146,7 +139,33 @@ export function NewBookingPage() {
   }, [busyRanges, form.inicio])
 
   const formIncomplete =
-    !form.espacoId || !form.data || !form.inicio || !form.fim || !form.motivo
+    !form.espacoId || !form.data || !form.inicio || !form.fim || !form.motivo.trim()
+
+  function setField(field, value) {
+    setForm((current) => {
+      const next = { ...current, [field]: value }
+      // Cascading reset: changing earlier steps clears later ones.
+      if (field === 'predioId') {
+        next.espacoId = ''
+        next.data = ''
+        next.inicio = ''
+        next.fim = ''
+      }
+      if (field === 'espacoId') {
+        next.data = ''
+        next.inicio = ''
+        next.fim = ''
+      }
+      if (field === 'data') {
+        next.inicio = ''
+        next.fim = ''
+      }
+      if (field === 'inicio') {
+        next.fim = ''
+      }
+      return next
+    })
+  }
 
   function openConfirm(event) {
     event.preventDefault()
@@ -175,8 +194,18 @@ export function NewBookingPage() {
     }
   }
 
+  const formattedDate = formatBrDate(form.data)
+
+  const summary = {
+    space: selectedSpace?.name ?? '—',
+    building: selectedBuilding?.name ?? selectedSpace?.building ?? '—',
+    capacity: selectedSpace ? t('common.patterns.peopleCount', { count: selectedSpace.capacity }) : '—',
+    dateTime: formattedDate && form.inicio && form.fim ? `${formattedDate} • ${form.inicio} – ${form.fim}` : '—',
+    requester: user?.email ?? '—',
+  }
+
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full max-w-4xl">
       <div className="mb-4">
         <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />
@@ -184,11 +213,7 @@ export function NewBookingPage() {
         </Button>
       </div>
 
-      <PageHeader
-        title={t('bookingForm.title')}
-        description={t('bookingForm.description')}
-        icon={PlusSquare}
-      />
+      <PageHeader title={t('bookingForm.title')} description={t('bookingForm.description')} />
 
       {loading && <LoadingBlock label={t('async.bookingLoad')} />}
       {error && <ErrorBlock message={t('async.bookingError')} />}
@@ -214,146 +239,207 @@ export function NewBookingPage() {
             </CardContent>
           </Card>
 
+          {/* Step 1 — prédio */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">{t('bookingForm.spaceTitle')}</CardTitle>
-              <CardDescription>{t('bookingForm.spaceDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="booking-building">{t('bookingForm.building')}</Label>
-                  <select
-                    id="booking-building"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    value={selectedBuildingId}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        predioId: event.target.value,
-                        espacoId: '',
-                        inicio: '',
-                        fim: '',
-                      }))
-                    }
-                  >
-                    <option value="">{t('bookingForm.chooseBuilding')}</option>
-                    {data.buildings.map((building) => (
-                      <option key={building.id} value={String(building.id)}>
-                        {building.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="booking-space">{t('bookingForm.room')}</Label>
-                  <select
-                    id="booking-space"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    value={form.espacoId}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, espacoId: event.target.value, inicio: '', fim: '' }))
-                    }
-                  >
-                    <option value="">{t('bookingForm.chooseRoom')}</option>
-                    {filteredSpaces.map((space) => (
-                      <option key={space.id} value={String(space.id)}>
-                        {space.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{t('bookingForm.dateTimeTitle')}</CardTitle>
-              <CardDescription>{t('bookingForm.dateTimeDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="booking-date">{t('bookingForm.reservationDate')}</Label>
-                  <Input
-                    id="booking-date"
-                    type="date"
-                    value={form.data}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, data: event.target.value, inicio: '', fim: '' }))
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="booking-start">{t('bookingForm.startTime')}</Label>
-                  <select
-                    id="booking-start"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={form.inicio}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, inicio: event.target.value, fim: '' }))
-                    }
-                    disabled={!form.espacoId || !form.data || loadingBusyRanges || busyRangesUnavailable}
-                  >
-                    <option value="">
-                      {loadingBusyRanges ? 'Carregando horários...' : 'Selecione o horário'}
-                    </option>
-                    {startOptions.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.value}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="booking-end">{t('bookingForm.endTime')}</Label>
-                  <select
-                    id="booking-end"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={form.fim}
-                    onChange={(event) => setForm((current) => ({ ...current, fim: event.target.value }))}
-                    disabled={!form.inicio || loadingBusyRanges || busyRangesUnavailable}
-                  >
-                    <option value="">Selecione o horário</option>
-                    {endOptions.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.value}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {busyRangesUnavailable && (
-                <p className="mt-2 text-xs text-destructive">
-                  Não foi possível validar os horários ocupados para este espaço. Tente novamente.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{t('bookingForm.reasonTitle')}</CardTitle>
-              <CardDescription>{t('bookingForm.reasonDescription')}</CardDescription>
+              <CardTitle className="text-lg">1. {t('bookingForm.building')}</CardTitle>
+              <CardDescription>Escolha o prédio onde deseja reservar.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="booking-reason">{t('bookingForm.academicReason')}</Label>
-                <Textarea
-                  id="booking-reason"
-                  rows={5}
-                  placeholder={t('bookingForm.reasonPlaceholder')}
-                  value={form.motivo}
-                  onChange={(event) => setForm((current) => ({ ...current, motivo: event.target.value }))}
-                />
+                <Label htmlFor="booking-building" className="sr-only">
+                  {t('bookingForm.building')}
+                </Label>
+                <select
+                  id="booking-building"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={form.predioId}
+                  onChange={(event) => setField('predioId', event.target.value)}
+                >
+                  <option value="">{t('bookingForm.chooseBuilding')}</option>
+                  {data.buildings.map((building) => (
+                    <option key={building.id} value={String(building.id)}>
+                      {building.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </CardContent>
           </Card>
 
+          {/* Step 2 — sala disponível */}
+          {form.predioId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">2. {t('bookingForm.room')}</CardTitle>
+                <CardDescription>
+                  {availableSpaces.length === 0
+                    ? 'Nenhuma sala disponível neste prédio no momento.'
+                    : 'Selecione uma das salas disponíveis abaixo.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {availableSpaces.length === 0 ? (
+                  <p className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                    Nenhuma sala disponível para este prédio. Tente outro prédio ou ajuste a disponibilidade no painel admin.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {availableSpaces.map((space) => {
+                      const selected = String(space.id) === form.espacoId
+                      return (
+                        <button
+                          key={space.id}
+                          type="button"
+                          onClick={() => setField('espacoId', String(space.id))}
+                          className={cn(
+                            'flex flex-col items-start rounded-lg border bg-card p-4 text-left transition hover:border-primary/40',
+                            selected && 'border-primary bg-primary-soft',
+                          )}
+                        >
+                          <span className="text-sm font-semibold">{space.name}</span>
+                          <span className="mt-0.5 text-xs text-muted-foreground">
+                            {t(space.typeKey)} · {t('common.patterns.peopleCount', { count: space.capacity })}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3 — data */}
+          {form.espacoId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">3. {t('bookingForm.reservationDate')}</CardTitle>
+                <CardDescription>
+                  {form.data
+                    ? `Selecionado: ${formatBrDate(form.data)}.`
+                    : 'Escolha o dia da reserva no calendário.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  locale={ptBR}
+                  weekStartsOn={0}
+                  selected={parseIsoDate(form.data)}
+                  onSelect={(date) => setField('data', date ? toIsoDate(date) : '')}
+                  disabled={isPastDay}
+                  className="mx-auto rounded-md border bg-card p-3 sm:p-5"
+                  classNames={{
+                    months: 'flex flex-col sm:flex-row sm:gap-6',
+                    month: 'space-y-4 sm:space-y-5',
+                    caption_label: 'text-base font-semibold capitalize',
+                    nav_button: 'h-8 w-8',
+                    head_cell: 'text-muted-foreground w-12 font-medium text-xs uppercase tracking-[0.12em]',
+                    cell: 'h-12 w-12 text-center text-sm p-0 relative focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md',
+                    day: 'h-12 w-12 p-0 font-medium text-sm rounded-md hover:bg-accent hover:text-accent-foreground aria-selected:opacity-100',
+                    day_selected:
+                      'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
+                    day_today: 'ring-1 ring-primary/40',
+                    day_disabled: 'text-muted-foreground opacity-40',
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4 — início */}
+          {form.data && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">4. {t('bookingForm.startTime')}</CardTitle>
+                <CardDescription>
+                  {loadingBusyRanges
+                    ? 'Carregando horários disponíveis...'
+                    : busyRangesUnavailable
+                      ? 'Não foi possível validar horários ocupados — escolha com cuidado.'
+                      : 'Selecione o horário de início.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {startOptions.length === 0 && !loadingBusyRanges ? (
+                  <p className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                    Nenhum horário livre nesta data.
+                  </p>
+                ) : (
+                  <TimeChipGrid
+                    options={startOptions}
+                    value={form.inicio}
+                    onChange={(value) => setField('inicio', value)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5 — fim */}
+          {form.inicio && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">5. {t('bookingForm.endTime')}</CardTitle>
+                <CardDescription>Escolha o horário de término.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {endOptions.length === 0 ? (
+                  <p className="rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                    Sem horários de término válidos após o início selecionado.
+                  </p>
+                ) : (
+                  <TimeChipGrid
+                    options={endOptions}
+                    value={form.fim}
+                    onChange={(value) => setField('fim', value)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 6 — motivo */}
+          {form.fim && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">6. {t('bookingForm.reasonTitle')}</CardTitle>
+                <CardDescription>{t('bookingForm.reasonDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="booking-reason" className="sr-only">
+                    {t('bookingForm.academicReason')}
+                  </Label>
+                  <Textarea
+                    id="booking-reason"
+                    rows={5}
+                    placeholder={t('bookingForm.reasonPlaceholder')}
+                    value={form.motivo}
+                    onChange={(event) => setField('motivo', event.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Confirmação textual */}
+          {!formIncomplete && (
+            <Card className="border-primary/30 bg-primary-soft p-5 text-sm text-foreground">
+              <p>
+                Reservar <strong>{summary.space}</strong> no prédio <strong>{summary.building}</strong> em{' '}
+                <strong>
+                  {formattedDate} das {form.inicio} às {form.fim}
+                </strong>
+                .
+              </p>
+            </Card>
+          )}
+
           <div className="flex justify-end">
             <Button type="submit" size="lg" disabled={formIncomplete}>
-              {t('bookingForm.submit')}
+              Continuar
             </Button>
           </div>
         </form>
@@ -363,15 +449,22 @@ export function NewBookingPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('bookingForm.summary')}</DialogTitle>
-            <DialogDescription>{t('bookingForm.description')}</DialogDescription>
+            <DialogDescription>
+              Revise os dados antes de confirmar. Após confirmar, a reserva é registrada.
+            </DialogDescription>
           </DialogHeader>
           <Separator />
+          <div className="rounded-md border border-primary/30 bg-primary-soft p-4 text-sm">
+            Reservar <strong>{summary.space}</strong> no prédio <strong>{summary.building}</strong> em{' '}
+            <strong>
+              {formattedDate} das {form.inicio} às {form.fim}
+            </strong>
+            .
+          </div>
           <dl className="space-y-3 text-sm">
-            <SummaryRow label={t('bookingForm.selectedSpace')} value={summary.space} />
-            <SummaryRow label={t('bookingForm.selectedBuilding')} value={summary.building} />
             <SummaryRow label={t('bookingForm.estimatedCapacity')} value={summary.capacity} />
-            <SummaryRow label={t('bookingForm.selectedDateTime')} value={summary.dateTime} />
             <SummaryRow label={t('bookingForm.requester')} value={summary.requester} />
+            <SummaryRow label="Motivo" value={form.motivo} />
           </dl>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
@@ -387,6 +480,31 @@ export function NewBookingPage() {
   )
 }
 
+function TimeChipGrid({ options, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((slot) => {
+        const selected = slot.value === value
+        return (
+          <button
+            key={slot.value}
+            type="button"
+            onClick={() => onChange(slot.value)}
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-xs font-medium transition',
+              selected
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-input bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground',
+            )}
+          >
+            {slot.value}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function SummaryRow({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -396,7 +514,7 @@ function SummaryRow({ label, value }) {
   )
 }
 
-function buildTimeSlots(start = 7 * 60, end = 22 * 60, step = 5) {
+function buildTimeSlots(start = 7 * 60, end = 22 * 60, step = 30) {
   const slots = []
   for (let minute = start; minute <= end; minute += step) {
     slots.push({
@@ -411,9 +529,7 @@ function isSameLocalDate(isoDateTime, yyyyMmDd) {
   if (!isoDateTime || !yyyyMmDd) return false
   const date = new Date(isoDateTime)
   if (Number.isNaN(date.getTime())) return false
-  const local = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')}`
+  const local = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   return local === yyyyMmDd
 }
 
@@ -441,8 +557,27 @@ function hasOverlap(start, end, ranges) {
   return ranges.some((range) => start < range.end && end > range.start)
 }
 
-function isBusyReservation(reservation) {
-  if (reservation.cancelada) return false
-  const rawStatus = typeof reservation.status === 'string' ? reservation.status.toUpperCase() : null
-  return rawStatus !== 'RECUSADA'
+function formatBrDate(yyyyMmDd) {
+  if (!yyyyMmDd || !yyyyMmDd.includes('-')) return ''
+  const [year, month, day] = yyyyMmDd.split('-')
+  return `${day}/${month}/${year}`
+}
+
+function parseIsoDate(yyyyMmDd) {
+  if (!yyyyMmDd || !yyyyMmDd.includes('-')) return undefined
+  const [year, month, day] = yyyyMmDd.split('-').map(Number)
+  if (!year || !month || !day) return undefined
+  return new Date(year, month - 1, day)
+}
+
+function toIsoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function isPastDay(date) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const day = new Date(date)
+  day.setHours(0, 0, 0, 0)
+  return day.getTime() < today.getTime()
 }

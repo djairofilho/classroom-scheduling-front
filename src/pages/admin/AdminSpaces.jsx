@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Building2, ChevronDown, Edit, PlusSquare, ToggleLeft, Trash2 } from 'lucide-react'
+import { PlusSquare, Trash2 } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -13,13 +13,15 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
@@ -39,12 +41,15 @@ export function AdminSpacesPage() {
   const { t } = useI18n()
   const [selectedBuildingId, setSelectedBuildingId] = useState('')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
-  const [pendingId, setPendingId] = useState(null)
+
   const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [savingForm, setSavingForm] = useState(false)
-  const [form, setForm] = useState({ nome: '', capacidade: '', tipo: 'SALA', predioId: '' })
-  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+
+  const [pendingId, setPendingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const loadAdminSpaces = useCallback(async () => {
     const [espacos, predios] = await Promise.all([api.listEspacos(), api.listPredios()])
@@ -66,19 +71,19 @@ export function AdminSpacesPage() {
   }, [data, onlyAvailable, selectedBuildingId])
 
   function openCreateDialog() {
-    setCreateForm({ ...EMPTY_FORM, predioId: selectedBuildingId || '' })
+    setForm({ ...EMPTY_FORM, predioId: selectedBuildingId || '' })
     setCreateOpen(true)
   }
 
-  async function handleCreateEspaco(event) {
+  async function handleCreate(event) {
     event.preventDefault()
-    if (creating) return
+    if (saving) return
 
-    const capacidadeNumber = Number(createForm.capacidade)
+    const capacidadeNumber = Number(form.capacidade)
     if (
-      !createForm.nome.trim() ||
-      !createForm.tipo ||
-      !createForm.predioId ||
+      !form.nome.trim() ||
+      !form.tipo ||
+      !form.predioId ||
       !Number.isFinite(capacidadeNumber) ||
       capacidadeNumber <= 0
     ) {
@@ -86,26 +91,23 @@ export function AdminSpacesPage() {
       return
     }
 
-    setCreating(true)
+    setSaving(true)
     try {
       const created = await api.createEspaco({
-        nome: createForm.nome.trim(),
-        tipo: createForm.tipo,
+        nome: form.nome.trim(),
+        tipo: form.tipo,
         capacidade: capacidadeNumber,
-        predioId: Number(createForm.predioId),
+        predioId: Number(form.predioId),
       })
       const mapped = mapEspaco(created)
-      setData((current) => ({
-        ...current,
-        spaces: [...current.spaces, mapped],
-      }))
+      setData((current) => ({ ...current, spaces: [mapped, ...current.spaces] }))
       toast.success(`Espaço "${mapped.name}" criado.`)
       setCreateOpen(false)
-      setCreateForm(EMPTY_FORM)
+      setForm(EMPTY_FORM)
     } catch (caughtError) {
       toast.error(caughtError.message || 'Não foi possível criar o espaço.')
     } finally {
-      setCreating(false)
+      setSaving(false)
     }
   }
 
@@ -130,88 +132,39 @@ export function AdminSpacesPage() {
     }
   }
 
-  function resetForm() {
-    setForm({ nome: '', capacidade: '', tipo: 'SALA', predioId: '' })
+  function openDeleteDialog(space) {
+    setDeleteTarget(space)
+    setDeleteError('')
   }
 
-  function openCreateModal() {
-    resetForm()
-    setCreateOpen(true)
+  function closeDeleteDialog() {
+    setDeleteTarget(null)
+    setDeleteError('')
   }
 
-  function openEditModal(space) {
-    setEditingId(space.id)
-    setForm({
-      nome: space.name,
-      capacidade: String(space.capacity),
-      tipo: inferApiType(space.typeKey),
-      predioId: space.buildingId ? String(space.buildingId) : '',
-    })
-    setEditOpen(true)
-  }
-
-  async function handleCreateSpace() {
-    if (!form.nome || !form.capacidade || !form.predioId) return
-    setSavingForm(true)
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    setDeleteError('')
     try {
-      const created = await api.createEspaco({
-        nome: form.nome,
-        capacidade: Number(form.capacidade),
-        tipo: form.tipo,
-        predioId: Number(form.predioId),
-      })
-      const mapped = mapEspaco(created)
-      setData((current) => ({ ...current, spaces: [mapped, ...current.spaces] }))
-      setCreateOpen(false)
-      resetForm()
-      toast.success('Espaço criado com sucesso.')
-    } catch (caughtError) {
-      toast.error(caughtError.message)
-    } finally {
-      setSavingForm(false)
-    }
-  }
-
-  async function handleEditSpace() {
-    if (!editingId || !form.nome || !form.capacidade || !form.predioId) return
-    setSavingForm(true)
-    try {
-      const updated = await api.updateEspaco(editingId, {
-        nome: form.nome,
-        capacidade: Number(form.capacidade),
-        tipo: form.tipo,
-        predioId: Number(form.predioId),
-      })
-      const mapped = mapEspaco(updated)
+      await api.removeEspaco(deleteTarget.id)
       setData((current) => ({
         ...current,
-        spaces: current.spaces.map((item) => (item.id === mapped.id ? mapped : item)),
+        spaces: current.spaces.filter((item) => item.id !== deleteTarget.id),
       }))
-      setEditOpen(false)
-      toast.success('Espaço atualizado com sucesso.')
+      toast.success(`Espaço "${deleteTarget.name}" removido.`)
+      setDeleteTarget(null)
     } catch (caughtError) {
-      toast.error(caughtError.message)
+      const message = caughtError.message ?? ''
+      const hasReservations =
+        caughtError.status === 409 ||
+        message.toLowerCase().includes('reserva')
+      const friendly = hasReservations
+        ? 'Não é possível excluir: o espaço possui reservas associadas.'
+        : message || 'Não foi possível excluir o espaço.'
+      setDeleteError(friendly)
     } finally {
-      setSavingForm(false)
-    }
-  }
-
-  async function handleDeleteSpace(space) {
-    const confirmed = window.confirm(`Deseja remover o espaço "${space.name}"?`)
-    if (!confirmed) return
-
-    setPendingId(space.id)
-    try {
-      await api.removeEspaco(space.id)
-      setData((current) => ({
-        ...current,
-        spaces: current.spaces.filter((item) => item.id !== space.id),
-      }))
-      toast.success('Espaço removido com sucesso.')
-    } catch (caughtError) {
-      toast.error(caughtError.message)
-    } finally {
-      setPendingId(null)
+      setDeleting(false)
     }
   }
 
@@ -220,9 +173,8 @@ export function AdminSpacesPage() {
       <PageHeader
         title={t('admin.spaces.title')}
         description={t('admin.spaces.description')}
-        icon={Building2}
         actions={
-          <Button onClick={openCreateModal}>
+          <Button onClick={openCreateDialog}>
             <PlusSquare className="h-4 w-4" />
             {t('admin.spaces.newSpace')}
           </Button>
@@ -291,38 +243,29 @@ export function AdminSpacesPage() {
                         <p className="mt-1 text-xs text-destructive">{space.maintenanceReason}</p>
                       )}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={pendingId === space.id}>
-                          {pendingId === space.id ? t('admin.spaces.saving') : 'Status'}
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>Status</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => openEditModal(space)}>
-                          <Edit className="h-4 w-4" />
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className={isAvailable ? 'text-destructive focus:text-destructive' : ''}
-                          onClick={() => handleToggleAvailability(space)}
-                        >
-                          <ToggleLeft className="h-4 w-4" />
-                          {isAvailable
-                            ? t('common.statuses.unavailable')
-                            : t('common.statuses.available')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => handleDeleteSpace(space)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Excluir espaço
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant={isAvailable ? 'outline' : 'default'}
+                        size="sm"
+                        disabled={pendingId === space.id}
+                        onClick={() => handleToggleAvailability(space)}
+                      >
+                        {pendingId === space.id
+                          ? t('admin.spaces.saving')
+                          : isAvailable
+                            ? 'Marcar indisponível'
+                            : 'Marcar disponível'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => openDeleteDialog(space)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Excluir
+                      </Button>
+                    </div>
                   </Card>
                 )
               })}
@@ -336,104 +279,116 @@ export function AdminSpacesPage() {
           <DialogHeader>
             <DialogTitle>Novo espaço</DialogTitle>
           </DialogHeader>
-          <SpaceFormFields
-            buildings={data?.buildings ?? []}
-            form={form}
-            onChange={setForm}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={savingForm}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateSpace} disabled={savingForm}>
-              {savingForm ? 'Salvando...' : 'Criar espaço'}
-            </Button>
-          </DialogFooter>
+          <form className="space-y-4" onSubmit={handleCreate}>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="new-space-nome">Nome</Label>
+              <Input
+                id="new-space-nome"
+                placeholder="Ex.: Sala A101"
+                value={form.nome}
+                onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="new-space-tipo">Tipo</Label>
+                <select
+                  id="new-space-tipo"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={form.tipo}
+                  onChange={(event) => setForm((current) => ({ ...current, tipo: event.target.value }))}
+                >
+                  {TIPO_ESPACO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="new-space-capacidade">Capacidade</Label>
+                <Input
+                  id="new-space-capacidade"
+                  type="number"
+                  min={1}
+                  placeholder="Ex.: 30"
+                  value={form.capacidade}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, capacidade: event.target.value }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="new-space-predio">Prédio</Label>
+              <select
+                id="new-space-predio"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={form.predioId}
+                onChange={(event) => setForm((current) => ({ ...current, predioId: event.target.value }))}
+                required
+              >
+                <option value="">Selecione o prédio...</option>
+                {(data?.buildings ?? []).map((building) => (
+                  <option key={building.id} value={String(building.id)}>
+                    {building.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando...' : 'Criar espaço'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar espaço</DialogTitle>
-          </DialogHeader>
-          <SpaceFormFields
-            buildings={data?.buildings ?? []}
-            form={form}
-            onChange={setForm}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingForm}>
-              Cancelar
-            </Button>
-            <Button onClick={handleEditSpace} disabled={savingForm}>
-              {savingForm ? 'Salvando...' : 'Salvar alterações'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog()
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir espaço?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `Tem certeza que deseja remover o espaço "${deleteTarget.name}"? Esta ação não pode ser desfeita.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                handleDelete()
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir espaço'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
-}
-
-function SpaceFormFields({ buildings, form, onChange }) {
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2">
-        <Label htmlFor="space-name">Nome</Label>
-        <Input
-          id="space-name"
-          value={form.nome}
-          onChange={(event) => onChange((current) => ({ ...current, nome: event.target.value }))}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="space-capacity">Capacidade</Label>
-        <Input
-          id="space-capacity"
-          type="number"
-          min={1}
-          value={form.capacidade}
-          onChange={(event) => onChange((current) => ({ ...current, capacidade: event.target.value }))}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="space-type">Tipo</Label>
-        <select
-          id="space-type"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={form.tipo}
-          onChange={(event) => onChange((current) => ({ ...current, tipo: event.target.value }))}
-        >
-          <option value="SALA">Sala</option>
-          <option value="LAB">Laboratório</option>
-          <option value="AUDITORIO">Auditório</option>
-          <option value="REUNIAO">Reunião</option>
-        </select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="space-building">Prédio</Label>
-        <select
-          id="space-building"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          value={form.predioId}
-          onChange={(event) => onChange((current) => ({ ...current, predioId: event.target.value }))}
-        >
-          <option value="">Selecione</option>
-          {buildings.map((building) => (
-            <option key={building.id} value={String(building.id)}>
-              {building.name}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  )
-}
-
-function inferApiType(typeKey) {
-  if (typeKey === 'common.spaceTypes.lab') return 'LAB'
-  if (typeKey === 'common.spaceTypes.auditorium') return 'AUDITORIO'
-  if (typeKey === 'common.spaceTypes.meeting') return 'REUNIAO'
-  return 'SALA'
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { ChevronDown, Edit, Search, Trash2, Users as UsersIcon, UserPlus } from 'lucide-react'
+import { Search, UserPlus } from 'lucide-react'
 
 import { ErrorBlock, LoadingBlock } from '@/components/layout/AsyncState'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -12,26 +12,20 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useAsyncData } from '@/hooks/useAsyncData'
 import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
 import { mapReserva, mapUsuario } from '@/lib/adapters'
 import { toast } from '@/components/ui/sonner'
 
+const EMPTY_FORM = { nome: '', email: '', tipoSolicitante: 'ALUNO' }
+
 export function AdminUsersPage() {
   const { t } = useI18n()
   const [emailTerm, setEmailTerm] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ nome: '', email: '', tipoSolicitante: 'ALUNO' })
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const loadUsers = useCallback(async () => {
     const [usuarios, solicitantes, reservas] = await Promise.all([
@@ -48,7 +42,6 @@ export function AdminUsersPage() {
       email: user.email,
       roleKey: 'common.statuses.user',
       requests: 0,
-      statusKey: 'common.statuses.active',
       isRequester: false,
     }))
 
@@ -58,7 +51,6 @@ export function AdminUsersPage() {
       email: solicitante.email,
       roleKey: 'common.statuses.requester',
       requests: mappedReservas.filter((reservation) => reservation.solicitanteId === solicitante.id).length,
-      statusKey: 'common.statuses.requester',
       isRequester: true,
     }))
 
@@ -73,7 +65,13 @@ export function AdminUsersPage() {
     return users.filter((user) => user.email.toLowerCase().includes(emailTerm.toLowerCase()))
   }, [data, emailTerm])
 
-  async function handleCreateRequester() {
+  function openCreate() {
+    setForm(EMPTY_FORM)
+    setCreateOpen(true)
+  }
+
+  async function handleCreate(event) {
+    event.preventDefault()
     if (!form.nome || !form.email) return
     setSaving(true)
     try {
@@ -84,12 +82,11 @@ export function AdminUsersPage() {
         email: created.email,
         roleKey: 'common.statuses.requester',
         requests: 0,
-        statusKey: 'common.statuses.requester',
         isRequester: true,
       }
       setData((current) => [mapped, ...current])
       setCreateOpen(false)
-      setForm({ nome: '', email: '', tipoSolicitante: 'ALUNO' })
+      setForm(EMPTY_FORM)
       toast.success('Solicitante criado com sucesso.')
     } catch (caughtError) {
       toast.error(caughtError.message)
@@ -103,9 +100,8 @@ export function AdminUsersPage() {
       <PageHeader
         title={t('admin.users.title')}
         description={t('admin.users.description')}
-        icon={UsersIcon}
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={openCreate}>
             <UserPlus className="h-4 w-4" />
             {t('admin.users.newRequester')}
           </Button>
@@ -154,26 +150,6 @@ export function AdminUsersPage() {
                     <span className="text-xs text-muted-foreground">
                       {user.requests} {user.requests === 1 ? 'solicitação' : 'solicitações'}
                     </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Status
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel>Status</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4" />
-                          {t('common.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                          {t('admin.users.manage')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
                 </li>
               ))}
@@ -187,29 +163,31 @@ export function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle>Novo solicitante</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-2">
+          <form className="space-y-4" onSubmit={handleCreate}>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="requester-name">Nome</Label>
               <Input
                 id="requester-name"
                 value={form.nome}
                 onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+                required
               />
             </div>
-            <div className="grid gap-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="requester-email">E-mail</Label>
               <Input
                 id="requester-email"
                 type="email"
                 value={form.email}
                 onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                required
               />
             </div>
-            <div className="grid gap-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="requester-type">Tipo</Label>
               <select
                 id="requester-type"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={form.tipoSolicitante}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, tipoSolicitante: event.target.value }))
@@ -219,15 +197,15 @@ export function AdminUsersPage() {
                 <option value="FUNCIONARIO">Funcionário</option>
               </select>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateRequester} disabled={saving}>
-              {saving ? 'Salvando...' : 'Criar solicitante'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando...' : 'Criar solicitante'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
