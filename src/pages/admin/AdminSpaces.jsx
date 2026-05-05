@@ -13,6 +13,14 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -25,6 +33,15 @@ import { useI18n } from '@/i18n/I18nProvider'
 import { api } from '@/lib/api'
 import { mapEspaco, mapPredio } from '@/lib/adapters'
 import { toast } from '@/components/ui/sonner'
+
+const TIPO_ESPACO_OPTIONS = [
+  { value: 'SALA', label: 'Sala' },
+  { value: 'AUDITORIO', label: 'Auditório' },
+  { value: 'QUADRA', label: 'Quadra' },
+  { value: 'LABORATORIO', label: 'Laboratório' },
+]
+
+const EMPTY_FORM = { nome: '', tipo: 'SALA', capacidade: '', predioId: '' }
 
 export function AdminSpacesPage() {
   const { t } = useI18n()
@@ -55,6 +72,50 @@ export function AdminSpacesPage() {
       return matchesBuilding && matchesAvailability
     })
   }, [data, onlyAvailable, selectedBuildingId])
+
+  function openCreateDialog() {
+    setCreateForm({ ...EMPTY_FORM, predioId: selectedBuildingId || '' })
+    setCreateOpen(true)
+  }
+
+  async function handleCreateEspaco(event) {
+    event.preventDefault()
+    if (creating) return
+
+    const capacidadeNumber = Number(createForm.capacidade)
+    if (
+      !createForm.nome.trim() ||
+      !createForm.tipo ||
+      !createForm.predioId ||
+      !Number.isFinite(capacidadeNumber) ||
+      capacidadeNumber <= 0
+    ) {
+      toast.error('Preencha todos os campos com valores válidos.')
+      return
+    }
+
+    setCreating(true)
+    try {
+      const created = await api.createEspaco({
+        nome: createForm.nome.trim(),
+        tipo: createForm.tipo,
+        capacidade: capacidadeNumber,
+        predioId: Number(createForm.predioId),
+      })
+      const mapped = mapEspaco(created)
+      setData((current) => ({
+        ...current,
+        spaces: [...current.spaces, mapped],
+      }))
+      toast.success(`Espaço "${mapped.name}" criado.`)
+      setCreateOpen(false)
+      setCreateForm(EMPTY_FORM)
+    } catch (caughtError) {
+      toast.error(caughtError.message || 'Não foi possível criar o espaço.')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   async function handleToggleAvailability(space) {
     setPendingId(space.id)
